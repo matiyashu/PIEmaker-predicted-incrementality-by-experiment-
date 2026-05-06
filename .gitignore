@@ -69,3 +69,6 @@ mlruns/
 *.pkl
 *.joblib
 *.h5
+
+# --- Phase 1 runtime data ---------------------------------------------------
+backend/uploads/

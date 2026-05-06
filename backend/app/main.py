@@ -1,9 +1,9 @@
 """
-FastAPI entrypoint — Phase 0 stub.
+FastAPI entrypoint.
 
-Phase 0 ships /health and /info; all other endpoints from PDF §6.3 return
-501 Not Implemented and are filled in by Prompts 1.x onward. This file proves
-the formula library imports cleanly inside the API process.
+Phase 0 shipped /health and /info.
+Phase 1 wires the upload, schema, validate, and clean routers (Prompts 1.1, 1.2).
+Later prompts will replace the remaining 501 stubs.
 """
 
 from __future__ import annotations
@@ -13,6 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import pie_formulas
 from app.config import get_settings
+from app.routers import clean as clean_router
+from app.routers import schema_map as schema_router
+from app.routers import upload as upload_router
+from app.routers import validate as validate_router
 
 settings = get_settings()
 
@@ -33,10 +37,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Phase 1 routers (Prompts 1.1, 1.2)
+app.include_router(upload_router.router)
+app.include_router(schema_router.router)
+app.include_router(validate_router.router)
+app.include_router(clean_router.router)
+
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "phase": "0", "formulas_version": pie_formulas.__version__}
+    return {"status": "ok", "phase": "1", "formulas_version": pie_formulas.__version__}
 
 
 @app.get("/info")
@@ -48,29 +58,9 @@ def info() -> dict:
     }
 
 
-# --- Phase 1+ stubs (PDF §6.3) ---------------------------------------------
+# --- Phase 2+ stubs (PDF §6.3) ---------------------------------------------
 
-_NOT_YET = "Endpoint not yet implemented in Phase 0; arrives in a later prompt."
-
-
-@app.post("/api/upload")
-def upload() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
-
-
-@app.post("/api/schema/map")
-def schema_map() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
-
-
-@app.post("/api/validate")
-def validate() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
-
-
-@app.post("/api/clean")
-def clean() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
+_NOT_YET = "Endpoint not yet implemented; arrives in a later prompt."
 
 
 @app.get("/api/donor-pool")

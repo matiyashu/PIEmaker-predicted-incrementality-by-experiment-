@@ -72,3 +72,6 @@ mlruns/
 
 # --- Phase 1 runtime data ---------------------------------------------------
 backend/uploads/
+
+# --- Phase 2 runtime data (JSON-file persistence shim + model artifacts) ----
+backend/state/

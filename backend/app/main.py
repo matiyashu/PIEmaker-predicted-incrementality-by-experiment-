@@ -2,7 +2,8 @@
 FastAPI entrypoint.
 
 Phase 0 shipped /health and /info.
-Phase 1 wires the upload, schema, validate, and clean routers (Prompts 1.1, 1.2).
+Phase 1 wired upload, schema, validate, clean (Prompts 1.1, 1.2).
+Phase 2 wires donor-pool, labels, features, models (Prompts 2.1–2.4).
 Later prompts will replace the remaining 501 stubs.
 """
 
@@ -14,6 +15,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import pie_formulas
 from app.config import get_settings
 from app.routers import clean as clean_router
+from app.routers import donor_pool as donor_pool_router
+from app.routers import features as features_router
+from app.routers import labels as labels_router
+from app.routers import models as models_router
 from app.routers import schema_map as schema_router
 from app.routers import upload as upload_router
 from app.routers import validate as validate_router
@@ -43,10 +48,16 @@ app.include_router(schema_router.router)
 app.include_router(validate_router.router)
 app.include_router(clean_router.router)
 
+# Phase 2 routers (Prompts 2.1, 2.2, 2.3, 2.4)
+app.include_router(donor_pool_router.router)
+app.include_router(labels_router.router)
+app.include_router(features_router.router)
+app.include_router(models_router.router)
+
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "phase": "1", "formulas_version": pie_formulas.__version__}
+    return {"status": "ok", "phase": "2", "formulas_version": pie_formulas.__version__}
 
 
 @app.get("/info")
@@ -58,29 +69,9 @@ def info() -> dict:
     }
 
 
-# --- Phase 2+ stubs (PDF §6.3) ---------------------------------------------
+# --- Phase 3+ stubs (PDF §6.3) ---------------------------------------------
 
 _NOT_YET = "Endpoint not yet implemented; arrives in a later prompt."
-
-
-@app.get("/api/donor-pool")
-def donor_pool() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
-
-
-@app.post("/api/labels/generate")
-def labels_generate() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
-
-
-@app.post("/api/features/build")
-def features_build() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
-
-
-@app.post("/api/models/train")
-def models_train() -> None:
-    raise HTTPException(status_code=501, detail=_NOT_YET)
 
 
 @app.post("/api/predict")

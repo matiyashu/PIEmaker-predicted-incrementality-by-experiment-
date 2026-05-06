@@ -1,0 +1,43 @@
+name: Formula Contracts
+
+# Frozen-formula contract tests — block merges that break PDF Section 3 formulas.
+# Any failure here means the PR is breaching the formula contract documented in
+# backend/pie_formulas/. Coverage must remain at 100% on that module.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  formula-contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend (test deps only)
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scipy pandera pandas pytest pytest-cov
+
+      - name: Run frozen formula contract tests
+        run: |
+          pytest tests/test_pie_formulas.py \
+            --cov=pie_formulas \
+            --cov-report=term-missing \
+            --cov-fail-under=100 \
+            -v
+
+      - name: Run upload schema tests
+        run: pytest tests/test_pie_upload_schema.py -v

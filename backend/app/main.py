@@ -20,6 +20,7 @@ from app.routers import donor_pool as donor_pool_router
 from app.routers import features as features_router
 from app.routers import labels as labels_router
 from app.routers import models as models_router
+from app.routers import decisions as decisions_router
 from app.routers import predictions as predictions_router
 from app.routers import schema_map as schema_router
 from app.routers import upload as upload_router
@@ -56,8 +57,9 @@ app.include_router(labels_router.router)
 app.include_router(features_router.router)
 app.include_router(models_router.router)
 
-# Phase 3 routers (Prompt 3.1)
+# Phase 3 routers (Prompts 3.1, 3.2, 3.3)
 app.include_router(predictions_router.router)
+app.include_router(decisions_router.router)
 
 
 @app.get("/health")

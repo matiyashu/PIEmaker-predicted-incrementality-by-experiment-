@@ -10,6 +10,7 @@ const links = [
   { href: "/models", label: "Model Trust" },
   { href: "/predict", label: "Predict" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/decisions", label: "Decisions" },
 ];
 
 export function Nav() {

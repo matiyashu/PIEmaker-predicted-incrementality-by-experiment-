@@ -532,3 +532,64 @@ export const scorePortfolio = (options: {
       only_non_rct: options.onlyNonRct ?? true,
     }),
   });
+
+// --- Phase 3.3: Decision Recommendations -----------------------------------
+
+export type ActionBand = "promote" | "hold" | "deprioritize" | "block";
+
+export interface Recommendation {
+  run_id: string;
+  campaign_id: string;
+  predicted_icpd: number;
+  ci_lower: number | null;
+  ci_upper: number | null;
+  worst_risk: "severe" | "high" | "medium" | "low" | "unknown";
+  risk_adjusted_score: number | null;
+  action: ActionBand;
+  rationale: string;
+  rank: number;
+}
+
+export interface ProjectedLift {
+  naive_portfolio_icpd: number;
+  advised_portfolio_icpd: number;
+  lift_pp: number;
+  n_followed: number;
+  n_total: number;
+  rationale: string;
+}
+
+export interface DecisionResponse {
+  recommendations: Recommendation[];
+  action_counts: Record<ActionBand, number>;
+  projected_lift: ProjectedLift | null;
+  is_research_model: boolean;
+  risk_floor: "low" | "unknown" | "medium" | "high" | "severe";
+  portfolio: {
+    model: ModelRecord;
+    aggregates: PortfolioAggregates;
+    watermark: string | null;
+  } | null;
+}
+
+export const recommendDecisions = (options: {
+  uploadId?: string;
+  rows?: Record<string, unknown>[];
+  runs?: PredictionRun[];
+  modelId?: string;
+  featureSetVersion?: string;
+  onlyNonRct?: boolean;
+  riskFloor?: "low" | "unknown" | "medium" | "high" | "severe";
+}): Promise<DecisionResponse> =>
+  jsonFetch(`${BASE}/api/decisions/recommend`, {
+    method: "POST",
+    body: JSON.stringify({
+      upload_id: options.uploadId ?? null,
+      rows: options.rows ?? null,
+      runs: options.runs ?? null,
+      model_id: options.modelId ?? null,
+      feature_set_version: options.featureSetVersion ?? "v1",
+      only_non_rct: options.onlyNonRct ?? true,
+      risk_floor: options.riskFloor ?? "low",
+    }),
+  });

@@ -4,6 +4,10 @@ const links = [
   { href: "/", label: "Overview" },
   { href: "/upload", label: "Upload" },
   { href: "/cleaning", label: "Cleaning" },
+  { href: "/donor-pool", label: "Donor Pool" },
+  { href: "/labels", label: "Labels" },
+  { href: "/features", label: "Features" },
+  { href: "/models", label: "Model Trust" },
 ];
 
 export function Nav() {

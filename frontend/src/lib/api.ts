@@ -496,3 +496,39 @@ export const listPredictions = (
   limit = 50,
 ): Promise<{ runs: PredictionRun[] }> =>
   jsonFetch(`${BASE}/api/predictions?limit=${limit}`, { method: "GET" });
+
+export interface PortfolioAggregates {
+  n: number;
+  mean_icpd: number;
+  median_icpd: number;
+  stdev_icpd: number;
+  p10_icpd: number;
+  p90_icpd: number;
+  risk_counts: Record<"severe" | "high" | "medium" | "low" | "unknown", number>;
+}
+
+export interface PortfolioResponse {
+  model: ModelRecord;
+  runs: PredictionRun[];
+  aggregates: PortfolioAggregates;
+  worst_segment_risk: SegmentRisk | null;
+  watermark: string | null;
+}
+
+export const scorePortfolio = (options: {
+  uploadId?: string;
+  rows?: Record<string, unknown>[];
+  modelId?: string;
+  featureSetVersion?: string;
+  onlyNonRct?: boolean;
+}): Promise<PortfolioResponse> =>
+  jsonFetch(`${BASE}/api/predictions/score-portfolio`, {
+    method: "POST",
+    body: JSON.stringify({
+      upload_id: options.uploadId ?? null,
+      rows: options.rows ?? null,
+      model_id: options.modelId ?? null,
+      feature_set_version: options.featureSetVersion ?? "v1",
+      only_non_rct: options.onlyNonRct ?? true,
+    }),
+  });

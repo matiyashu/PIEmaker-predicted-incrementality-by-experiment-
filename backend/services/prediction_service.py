@@ -16,10 +16,12 @@ Decision logic for which model to use:
 
 from __future__ import annotations
 
+import statistics
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from ml.holdout_one_level import SEGMENTATION_VARS
@@ -213,3 +215,133 @@ def list_runs(limit: int = 50) -> list[dict]:
     rows = read_table(PREDICTION_RUNS_TABLE)
     rows.sort(key=lambda r: r["created_at"], reverse=True)
     return rows[:limit]
+
+
+# --- Portfolio scoring (Prompt 3.2) ----------------------------------------
+
+
+def score_portfolio(
+    rows: list[dict],
+    model_id: str | None = None,
+    feature_set_version: str = DEFAULT_FEATURE_SET_VERSION,
+) -> dict:
+    """Score a list of campaign specs (a portfolio) against one model.
+
+    Picks the model once (same precedence as score_campaign), batches the
+    feature build + predict, then attaches segment-risk badges per row. Each
+    row is persisted to prediction_runs so /api/predictions reflects the
+    portfolio entries alongside single-shot scores.
+
+    Returns: {
+      model: <ModelRecord>,
+      runs: [<PredictionRun>],
+      aggregates: {n, mean_icpd, median_icpd, stdev_icpd, p10_icpd, p90_icpd,
+                   risk_counts: {severe, high, medium, low, unknown}},
+      worst_segment_risk: <SegmentRisk | None>,  # the worst across the portfolio
+    }
+    """
+    if not rows:
+        raise PredictionError("portfolio is empty")
+
+    model = _select_model(model_id)
+    estimator = load_model(model["id"])
+    half_width = _ci_half_width(model["id"])
+    watermark = (
+        "Research-mode model (donor pool < 400 RCTs). Predictions are "
+        "advisory only and may not be used in the Decision Simulator."
+        if model["status"] == "research"
+        else None
+    )
+
+    frame = pd.DataFrame(
+        [
+            {k: r.get(k) for k in INPUT_FIELDS if k in r}
+            for r in rows
+        ]
+    )
+    if "campaign_id" not in frame.columns:
+        frame["campaign_id"] = [
+            f"PRED-{uuid.uuid4().hex[:8]}" for _ in range(len(frame))
+        ]
+    else:
+        # Fill any missing campaign_ids with a generated one.
+        missing = frame["campaign_id"].isna()
+        if missing.any():
+            frame.loc[missing, "campaign_id"] = [
+                f"PRED-{uuid.uuid4().hex[:8]}" for _ in range(int(missing.sum()))
+            ]
+
+    feats_df = build_features(
+        frame,
+        mode="scoring",
+        feature_set_version=feature_set_version,
+        sample_id=None,
+    )
+    preds = estimator.predict(_flatten_for_model(feats_df)).tolist()
+
+    runs: list[dict] = []
+    now = datetime.now(timezone.utc).isoformat()
+    for spec, pred in zip(rows, preds, strict=True):
+        cid = str(spec.get("campaign_id") or f"PRED-{uuid.uuid4().hex[:8]}")
+        risks = [r for v in SEGMENTATION_VARS if (r := _segment_risk(spec, v))]
+        worst = max(
+            (r for r in risks if r.get("penalty_pp") is not None),
+            key=lambda r: r["penalty_pp"],
+            default=None,
+        )
+        run = {
+            "id": uuid.uuid4().hex[:12],
+            "campaign_id": cid,
+            "model_version_id": model["id"],
+            "model_status": model["status"],
+            "feature_set_version": feature_set_version,
+            "predicted_icpd": float(pred),
+            "ci_lower": float(pred) - half_width if half_width is not None else None,
+            "ci_upper": float(pred) + half_width if half_width is not None else None,
+            "segment_risks": risks,
+            "worst_segment_risk": worst,
+            "watermark": watermark,
+            "spec": spec,
+            "portfolio_run": True,
+            "created_at": now,
+        }
+        upsert(PREDICTION_RUNS_TABLE, run, key="id")
+        runs.append(run)
+
+    icpds = [r["predicted_icpd"] for r in runs]
+    risk_counts = {"severe": 0, "high": 0, "medium": 0, "low": 0, "unknown": 0}
+    for r in runs:
+        if r["worst_segment_risk"]:
+            risk_counts[r["worst_segment_risk"]["risk"]] = (
+                risk_counts.get(r["worst_segment_risk"]["risk"], 0) + 1
+            )
+        else:
+            risk_counts["unknown"] += 1
+
+    aggregates = {
+        "n": len(icpds),
+        "mean_icpd": float(np.mean(icpds)),
+        "median_icpd": float(np.median(icpds)),
+        "stdev_icpd": float(statistics.pstdev(icpds)) if len(icpds) > 1 else 0.0,
+        "p10_icpd": float(np.percentile(icpds, 10)),
+        "p90_icpd": float(np.percentile(icpds, 90)),
+        "risk_counts": risk_counts,
+    }
+    portfolio_worst = max(
+        (
+            r["worst_segment_risk"]
+            for r in runs
+            if r["worst_segment_risk"]
+            and r["worst_segment_risk"].get("penalty_pp") is not None
+        ),
+        key=lambda x: x["penalty_pp"],
+        default=None,
+    )
+
+    return {
+        "model": model,
+        "runs": runs,
+        "aggregates": aggregates,
+        "worst_segment_risk": portfolio_worst,
+        "watermark": watermark,
+    }

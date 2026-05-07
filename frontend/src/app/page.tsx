@@ -1,24 +1,22 @@
 import Link from "next/link";
 
 const phases = [
-  { id: 0, title: "Product Foundation", weeks: "Week 1", status: "in-progress" },
-  { id: 1, title: "Upload, Validation, Cleaning", weeks: "Weeks 2–3", status: "pending" },
-  { id: 2, title: "Donor Pool, Labels, Features, Model Lab", weeks: "Weeks 4–7", status: "pending" },
-  { id: 3, title: "Prediction Workspace & Decision Simulator", weeks: "Weeks 8–10", status: "pending" },
-  { id: 4, title: "Monitoring, Governance, Reporting", weeks: "Weeks 11–13", status: "pending" },
+  { id: 0, title: "Product Foundation — monorepo + frozen formulas", weeks: "0.1", status: "complete" },
+  { id: 1, title: "Upload, Validation, Cleaning, MC Defense", weeks: "1.1, 1.2", status: "complete" },
+  { id: 2, title: "Donor Pool, Labels, Features, Model Trust", weeks: "2.1–2.4", status: "complete" },
+  { id: 3, title: "Predict, Portfolio Scoring, Decision Recommendations", weeks: "3.1–3.3", status: "complete" },
+  { id: 4, title: "Drift Monitoring, Decision Simulator", weeks: "4.1, 4.2", status: "complete" },
 ];
 
-const modules = [
-  ["A", "Executive Overview", "Leadership / client"],
-  ["B", "Upload & Mapping Studio", "Analyst"],
-  ["C", "Data Validation & Cleaning Workbench", "Analyst / data engineer"],
-  ["D", "Donor Pool Manager", "Measurement lead"],
-  ["E", "Feature Engineering Studio", "Data scientist"],
-  ["F", "RCT Label Generator", "Data scientist"],
-  ["G", "Model Lab", "Data scientist"],
-  ["H", "Prediction Workspace", "Consultant / media lead"],
-  ["I", "Decision Simulator", "Consultant / leadership"],
-  ["J", "Monitoring & Governance", "ML / data team"],
+const quickLinks: { href: "/upload" | "/donor-pool" | "/models" | "/predict" | "/portfolio" | "/decisions" | "/drift" | "/simulator"; label: string; hint: string }[] = [
+  { href: "/upload", label: "1. Upload", hint: "drop a CSV → get an upload_id" },
+  { href: "/donor-pool", label: "2. Donor Pool", hint: "promote RCTs into the training pool" },
+  { href: "/models", label: "3. Model Trust", hint: "train + inspect ablation, hold-out" },
+  { href: "/predict", label: "4. Predict", hint: "score a single campaign" },
+  { href: "/portfolio", label: "5. Portfolio", hint: "score every non-RCT row in an upload" },
+  { href: "/decisions", label: "6. Decisions", hint: "rank with risk gates" },
+  { href: "/drift", label: "7. Drift", hint: "PSI vs. training distribution" },
+  { href: "/simulator", label: "8. Simulator", hint: "reallocate budget" },
 ];
 
 export default function Home() {
@@ -46,17 +44,11 @@ export default function Home() {
             >
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Phase {phase.id} · {phase.weeks}
+                  Phase {phase.id} · prompts {phase.weeks}
                 </p>
                 <p className="font-medium">{phase.title}</p>
               </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  phase.status === "in-progress"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground"
-                }`}
-              >
+              <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-medium text-white">
                 {phase.status}
               </span>
             </li>
@@ -64,15 +56,22 @@ export default function Home() {
         </ol>
       </section>
 
-      <section>
-        <h2 className="mb-4 text-xl font-medium">Modules</h2>
+      <section className="mb-12">
+        <h2 className="mb-4 text-xl font-medium">Click-through tour</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Suggested order: upload → donor pool → train a model → walk through
+          predictions/decisions/drift/simulator.
+        </p>
         <div className="grid gap-3 md:grid-cols-2">
-          {modules.map(([id, name, user]) => (
-            <div key={id} className="rounded-md border p-4">
-              <p className="text-xs uppercase text-muted-foreground">Module {id}</p>
-              <p className="mt-1 font-medium">{name}</p>
-              <p className="text-sm text-muted-foreground">{user}</p>
-            </div>
+          {quickLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-md border p-4 hover:bg-secondary/40"
+            >
+              <p className="font-medium">{link.label}</p>
+              <p className="text-sm text-muted-foreground">{link.hint}</p>
+            </Link>
           ))}
         </div>
       </section>

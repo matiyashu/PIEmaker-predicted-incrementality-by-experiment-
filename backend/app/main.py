@@ -6,8 +6,8 @@ Phase 1 wired upload, schema, validate, clean (Prompts 1.1, 1.2).
 Phase 2 wired donor-pool, labels, features, models (Prompts 2.1–2.4).
 Phase 3 wired predictions, portfolio scoring, and decision recommendations
   (Prompts 3.1, 3.2, 3.3).
-Phase 4 wires drift monitoring (Prompt 4.1).
-Later prompts will replace the remaining 501 stubs.
+Phase 4 wires drift monitoring and the decision simulator (Prompts 4.1, 4.2).
+All phases of build plan v3 are now wired.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from app.routers import models as models_router
 from app.routers import decisions as decisions_router
 from app.routers import drift as drift_router
 from app.routers import predictions as predictions_router
+from app.routers import simulator as simulator_router
 from app.routers import schema_map as schema_router
 from app.routers import upload as upload_router
 from app.routers import validate as validate_router
@@ -64,8 +65,9 @@ app.include_router(models_router.router)
 app.include_router(predictions_router.router)
 app.include_router(decisions_router.router)
 
-# Phase 4 routers (Prompt 4.1)
+# Phase 4 routers (Prompts 4.1, 4.2)
 app.include_router(drift_router.router)
+app.include_router(simulator_router.router)
 
 
 @app.get("/health")

@@ -641,3 +641,62 @@ export const checkDrift = (options: {
       only_non_rct: options.onlyNonRct ?? true,
     }),
   });
+
+// --- Phase 4.2: Decision Simulator -----------------------------------------
+
+export interface CampaignAllocation {
+  run_id: string;
+  campaign_id: string;
+  action: ActionBand;
+  worst_risk: "severe" | "high" | "medium" | "low" | "unknown";
+  predicted_icpd: number;
+  risk_adjusted_score: number | null;
+  original_spend: number;
+  proposed_spend: number;
+  delta_spend: number;
+  delta_pct: number | null;
+  capped: boolean;
+  original_ic: number;
+  proposed_ic: number;
+}
+
+export interface SimulatorResponse {
+  model: ModelRecord;
+  cap_multiplier: number;
+  risk_floor: "low" | "unknown" | "medium" | "high" | "severe";
+  original_total_budget: number;
+  total_budget: number;
+  original_ic_total: number;
+  proposed_ic_total: number;
+  ic_lift_pct: number | null;
+  n_campaigns: number;
+  n_blocked: number;
+  n_capped: number;
+  n_promoted: number;
+  allocations: CampaignAllocation[];
+  rationale: string;
+}
+
+export const runSimulator = (options: {
+  uploadId?: string;
+  rows?: Record<string, unknown>[];
+  modelId?: string;
+  capMultiplier?: number;
+  totalBudgetOverride?: number;
+  riskFloor?: "low" | "unknown" | "medium" | "high" | "severe";
+  onlyNonRct?: boolean;
+  featureSetVersion?: string;
+}): Promise<SimulatorResponse> =>
+  jsonFetch(`${BASE}/api/simulator/run`, {
+    method: "POST",
+    body: JSON.stringify({
+      upload_id: options.uploadId ?? null,
+      rows: options.rows ?? null,
+      model_id: options.modelId ?? null,
+      cap_multiplier: options.capMultiplier ?? 2.0,
+      total_budget_override: options.totalBudgetOverride ?? null,
+      risk_floor: options.riskFloor ?? "low",
+      only_non_rct: options.onlyNonRct ?? true,
+      feature_set_version: options.featureSetVersion ?? "v1",
+    }),
+  });

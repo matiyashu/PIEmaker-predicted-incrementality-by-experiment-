@@ -593,3 +593,51 @@ export const recommendDecisions = (options: {
       risk_floor: options.riskFloor ?? "low",
     }),
   });
+
+// --- Phase 4.1: Drift Monitoring -------------------------------------------
+
+export type DriftSeverity = "stable" | "moderate" | "severe";
+export type DriftVerdict = "stable" | "watch" | "retrain_recommended";
+
+export interface DriftBin {
+  bin: string;
+  expected: number;
+  actual: number;
+  delta: number;
+}
+
+export interface FeatureDrift {
+  feature: string;
+  kind: "numeric" | "categorical";
+  psi: number;
+  severity: DriftSeverity;
+  n_train: number;
+  n_score: number;
+  bins: DriftBin[];
+}
+
+export interface DriftResponse {
+  feature_set_version: string;
+  n_training_rows: number;
+  n_scoring_rows: number;
+  max_psi: number;
+  mean_psi: number;
+  severity_counts: Record<DriftSeverity, number>;
+  verdict: DriftVerdict;
+  rationale: string;
+  drifts: FeatureDrift[];
+}
+
+export const checkDrift = (options: {
+  uploadId: string;
+  featureSetVersion?: string;
+  onlyNonRct?: boolean;
+}): Promise<DriftResponse> =>
+  jsonFetch(`${BASE}/api/drift/check`, {
+    method: "POST",
+    body: JSON.stringify({
+      upload_id: options.uploadId,
+      feature_set_version: options.featureSetVersion ?? "v1",
+      only_non_rct: options.onlyNonRct ?? true,
+    }),
+  });

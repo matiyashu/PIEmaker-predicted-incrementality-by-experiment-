@@ -4,7 +4,9 @@ FastAPI entrypoint.
 Phase 0 shipped /health and /info.
 Phase 1 wired upload, schema, validate, clean (Prompts 1.1, 1.2).
 Phase 2 wired donor-pool, labels, features, models (Prompts 2.1–2.4).
-Phase 3 wires predictions (Prompt 3.1).
+Phase 3 wired predictions, portfolio scoring, and decision recommendations
+  (Prompts 3.1, 3.2, 3.3).
+Phase 4 wires drift monitoring (Prompt 4.1).
 Later prompts will replace the remaining 501 stubs.
 """
 
@@ -21,6 +23,7 @@ from app.routers import features as features_router
 from app.routers import labels as labels_router
 from app.routers import models as models_router
 from app.routers import decisions as decisions_router
+from app.routers import drift as drift_router
 from app.routers import predictions as predictions_router
 from app.routers import schema_map as schema_router
 from app.routers import upload as upload_router
@@ -60,6 +63,9 @@ app.include_router(models_router.router)
 # Phase 3 routers (Prompts 3.1, 3.2, 3.3)
 app.include_router(predictions_router.router)
 app.include_router(decisions_router.router)
+
+# Phase 4 routers (Prompt 4.1)
+app.include_router(drift_router.router)
 
 
 @app.get("/health")

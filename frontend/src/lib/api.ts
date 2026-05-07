@@ -451,3 +451,48 @@ export const runHoldout = (
       n_iterations: options?.nIterations ?? 50,
     }),
   });
+
+// --- Phase 3: Predictions (3.1) --------------------------------------------
+
+export interface SegmentRisk {
+  segmentation_var: string;
+  level: string;
+  within_r2_median?: number | null;
+  extrapolation_r2_median?: number | null;
+  penalty_pp: number | null;
+  risk: "severe" | "high" | "medium" | "low" | "unknown";
+}
+
+export interface PredictionRun {
+  id: string;
+  campaign_id: string;
+  model_version_id: string;
+  model_status: "research" | "production";
+  feature_set_version: string;
+  predicted_icpd: number;
+  ci_lower: number | null;
+  ci_upper: number | null;
+  segment_risks: SegmentRisk[];
+  worst_segment_risk: SegmentRisk | null;
+  watermark: string | null;
+  spec: Record<string, unknown>;
+  created_at: string;
+}
+
+export const scoreCampaign = (
+  spec: Record<string, unknown>,
+  options?: { modelId?: string; featureSetVersion?: string },
+): Promise<PredictionRun> =>
+  jsonFetch(`${BASE}/api/predictions/score`, {
+    method: "POST",
+    body: JSON.stringify({
+      spec,
+      model_id: options?.modelId ?? null,
+      feature_set_version: options?.featureSetVersion ?? "v1",
+    }),
+  });
+
+export const listPredictions = (
+  limit = 50,
+): Promise<{ runs: PredictionRun[] }> =>
+  jsonFetch(`${BASE}/api/predictions?limit=${limit}`, { method: "GET" });

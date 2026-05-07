@@ -5,10 +5,14 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from datetime import datetime, timezone
+
 from ml.holdout_one_level import SEGMENTATION_VARS, run_extrapolation_test
 from ml.model_registry import list_models, metrics_for, promote_to_production
 from services.model_training_service import train_pie_model
-from services.persistence import read_table
+from services.persistence import read_table, upsert
+
+HOLDOUT_RESULTS_TABLE = "holdout_results"
 
 router = APIRouter(prefix="/api/models", tags=["models"])
 
@@ -84,6 +88,18 @@ def holdout(req: HoldoutRequest) -> dict:
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+    # Persist per-level results so the prediction service can attach
+    # extrapolation-risk badges to forecasts (Phase 3.1).
+    now = datetime.now(timezone.utc).isoformat()
+    for row in results:
+        key_id = f"{row['segmentation_var']}|{row['level']}"
+        upsert(
+            HOLDOUT_RESULTS_TABLE,
+            {**row, "id": key_id, "created_at": now},
+            key="id",
+        )
+
     return {
         "segmentation_var": req.segmentation_var,
         "n_iterations": req.n_iterations,

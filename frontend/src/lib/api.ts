@@ -1,9 +1,113 @@
 // Typed fetch helpers for the PIEmaker backend.
 // Uses Next.js rewrites: /api/backend/* -> http://localhost:8000/*
+//
+// Demo-mode interception: when isDemoMode() is true, jsonFetch and
+// uploadFile short-circuit to canned responses from `./mock`. This lets
+// the entire dashboard render without a backend (Vercel-only deployment,
+// offline screenshots, fallback for failed seed runs).
+
+import { isDemoMode } from "./demo-mode";
+import * as mock from "./mock";
 
 const BASE = "/api/backend";
 
+function _mockDispatch<T>(url: string, init?: RequestInit): T {
+  // Strip the BASE prefix so we match against the backend path the URL
+  // would have hit. Keeps the dispatcher readable.
+  const path = url.replace(BASE, "");
+  const method = (init?.method ?? "GET").toUpperCase();
+  let body: Record<string, unknown> = {};
+  if (init?.body) {
+    try {
+      body = JSON.parse(String(init.body));
+    } catch {
+      body = {};
+    }
+  }
+  const m = (data: unknown) => data as T;
+
+  // Demo + dashboard
+  if (path === "/api/demo/status") return m(mock.mockDemoStatus());
+  if (path === "/api/demo/seed") return m(mock.mockSeedDemo());
+  if (path === "/api/dashboard/summary") return m(mock.mockDashboardSummary());
+
+  // Donor pool
+  if (path === "/api/donor-pool/status") return m(mock.mockPoolStatus());
+  if (path === "/api/donor-pool/eligible")
+    return m(mock.mockEligibleRcts(String(body.upload_id ?? "mockupload01")));
+  if (path === "/api/donor-pool/promote")
+    return m(mock.mockPromoteRcts((body.campaign_ids as string[]) ?? []));
+  if (path === "/api/donor-pool/demote")
+    return m(mock.mockDemoteRct(String(body.campaign_id ?? "")));
+  if (path === "/api/donor-pool/coverage") return m(mock.mockCoverage());
+  if (path === "/api/donor-pool/aging") return m(mock.mockAging());
+  if (path === "/api/donor-pool/shadow-rcts") return m(mock.mockShadowRcts());
+
+  // Labels / Features
+  if (path === "/api/labels/generate")
+    return m(mock.mockGenerateLabels(String(body.upload_id ?? "mockupload01")));
+  if (path === "/api/features/build")
+    return m(
+      mock.mockBuildFeatures(
+        String(body.upload_id ?? "mockupload01"),
+        (body.mode as "training" | "scoring") ?? "training",
+      ),
+    );
+
+  // Models
+  if (path.startsWith("/api/models") && method === "GET") {
+    const metricsMatch = path.match(/^\/api\/models\/([^/]+)\/metrics$/);
+    if (metricsMatch) return m(mock.mockModelMetrics(metricsMatch[1]));
+    return m(mock.mockListModels());
+  }
+  if (path === "/api/models/train") return m(mock.mockTrainModel());
+  if (path === "/api/models/promote") return m(mock.mockPromoteModel());
+  if (path === "/api/models/holdout-one-level")
+    return m(mock.mockHoldout(String(body.segmentation_var ?? "vertical")));
+
+  // Predictions
+  if (path === "/api/predictions/score")
+    return m(
+      mock.mockScoreCampaign(
+        (body.spec as Record<string, unknown>) ?? {},
+      ),
+    );
+  if (path.startsWith("/api/predictions") && method === "GET")
+    return m(mock.mockListPredictions());
+  if (path === "/api/predictions/score-portfolio")
+    return m(mock.mockScorePortfolio());
+
+  // Decisions
+  if (path === "/api/decisions/recommend")
+    return m(mock.mockRecommendDecisions());
+
+  // Drift
+  if (path === "/api/drift/check") return m(mock.mockDrift());
+
+  // Simulator
+  if (path === "/api/simulator/run")
+    return m(mock.mockSimulator(Number(body.cap_multiplier ?? 2.0)));
+
+  // Phase 1 upload pipeline
+  if (path === "/api/schema/suggest")
+    return m(mock.mockSchemaSuggest(String(body.upload_id ?? "mockupload01")));
+  if (path === "/api/validate")
+    return m(mock.mockValidate(String(body.upload_id ?? "mockupload01")));
+  if (path === "/api/clean")
+    return m(mock.mockClean(String(body.upload_id ?? "mockupload01")));
+
+  throw new Error(
+    `Demo mode: no mock handler for ${method} ${path}. Either disable demo mode or add a mock in lib/mock.ts.`,
+  );
+}
+
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  if (isDemoMode()) {
+    // Tiny artificial latency so spinners briefly render — feels more
+    // realistic than instant resolution and doesn't block the main thread.
+    await new Promise((r) => setTimeout(r, 50));
+    return _mockDispatch<T>(url, init);
+  }
   const resp = await fetch(url, {
     ...init,
     headers: {
@@ -86,6 +190,10 @@ export interface CleanResponse {
 // --- API calls -------------------------------------------------------------
 
 export async function uploadFile(file: File): Promise<UploadResponse> {
+  if (isDemoMode()) {
+    await new Promise((r) => setTimeout(r, 200));
+    return { ...mock.mockUpload(), filename: file.name };
+  }
   const fd = new FormData();
   fd.append("file", file);
   const resp = await fetch(`${BASE}/api/upload`, { method: "POST", body: fd });

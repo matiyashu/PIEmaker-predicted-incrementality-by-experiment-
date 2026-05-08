@@ -101,6 +101,13 @@ export default function LandingPage() {
               Launch app
               <ArrowRight className="h-4 w-4" />
             </Link>
+            <Link
+              href="/dashboard?demo=1"
+              className="inline-flex items-center gap-2 rounded-md border-2 border-amber-400/60 bg-amber-400/10 px-5 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-400/20"
+            >
+              <Sparkles className="h-4 w-4" />
+              Try demo mode (no backend)
+            </Link>
             <a
               href="https://github.com/matiyashu/PIEmaker-predicted-incrementality-by-experiment-"
               target="_blank"
@@ -110,6 +117,11 @@ export default function LandingPage() {
               View source
             </a>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Demo mode renders every page with realistic mock data — useful for
+            offline previews, screenshots, and Vercel deployments where the
+            FastAPI backend isn&rsquo;t available.
+          </p>
           <p className="mt-6 text-sm text-muted-foreground">
             Built by <span className="font-medium text-foreground">Prima Hanura Akbar</span> · Jakarta · 2026
           </p>

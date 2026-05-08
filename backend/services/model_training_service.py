@@ -35,10 +35,13 @@ def _load_aligned_rows(feature_set_version: str) -> tuple[list[dict], list[dict]
         for r in read_table("feature_store")
         if r.get("feature_set_version") == feature_set_version and r.get("mode") == "training"
     ]
+    # Use every label row that has both a campaign_id and an icpd value; the
+    # donor-pool admission decision is tracked separately in
+    # donor_pool_membership and shouldn't gate which labels train sees.
     labels = [
         r
         for r in read_table("rct_labels")
-        if r.get("admitted_to_donor_pool") is False  # any RCT with a label
+        if r.get("campaign_id") and r.get("icpd") is not None
     ]
     return feats, labels, [1.0] * len(feats)
 
@@ -47,6 +50,8 @@ def train_pie_model(
     feature_set_version: str = "v1",
     name: str = "pie_random_forest",
     n_bootstrap: int = 200,
+    grid: list[dict] | None = None,
+    n_splits: int = 5,
 ) -> dict:
     pool_status = get_pool_size_status()
     if pool_status.band == "blocked":
@@ -64,7 +69,13 @@ def train_pie_model(
     label_by_id = {r["campaign_id"]: r for r in labels}
     feats_aligned = [f for f in feats if f["campaign_id"] in label_by_id]
     if not feats_aligned:
-        raise ValueError("no overlap between feature rows and label rows")
+        feat_sample = sorted({f.get("campaign_id") for f in feats})[:3]
+        label_sample = sorted(label_by_id.keys())[:3]
+        raise ValueError(
+            f"no overlap between feature rows and label rows; "
+            f"{len(feats)} feature rows (sample ids: {feat_sample}), "
+            f"{len(labels)} label rows (sample ids: {label_sample})"
+        )
 
     icpd_true = [label_by_id[f["campaign_id"]]["icpd"] for f in feats_aligned]
     cost_proxy = [
@@ -72,7 +83,9 @@ def train_pie_model(
         for f in feats_aligned
     ]  # placeholder weight if cost is not in feature_store
 
-    artifacts = train(feats_aligned, list(label_by_id.values()))
+    artifacts = train(
+        feats_aligned, list(label_by_id.values()), grid=grid, n_splits=n_splits
+    )
     preds = predict_icpd(artifacts.estimator, feats_aligned).tolist()
 
     r2 = weighted_r_squared(icpd_true, preds, cost_proxy)

@@ -111,7 +111,7 @@ export default function DashboardPage() {
             Seed the demo dataset to populate every page in one click. This
             uploads 400 RCTs, trains a production-band model, runs
             hold-out-one-level on every segmentation variable, and scores 50
-            candidate campaigns. Takes ~20–30 seconds.
+            candidate campaigns. Takes ~1–2 minutes (training is the slow step).
           </p>
           {error && (
             <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -124,7 +124,7 @@ export default function DashboardPage() {
             disabled={seeding}
             className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
           >
-            {seeding ? "Seeding (this can take ~30s)…" : "Seed demo data"}
+            {seeding ? "Seeding (training the model, ~1–2 min)…" : "Seed demo data"}
             <ArrowRight className="h-4 w-4" />
           </button>
           <p className="mt-4 text-xs text-muted-foreground">

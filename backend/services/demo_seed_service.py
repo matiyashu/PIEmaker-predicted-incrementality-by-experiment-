@@ -127,9 +127,26 @@ def seed(csv_path: Path | None = None) -> dict:
     build_features(rct_df, mode="training")
     durations["features"] = time.perf_counter() - t
 
-    # 5. Train model (donor pool ≥ 400 → production band, no watermark)
+    # 5. Train model (donor pool ≥ 400 → production band, no watermark).
+    # The demo uses a single small RF spec + n_bootstrap=20 + 3-fold CV so the
+    # whole seed lands in ~30s instead of the full grid's ~5min. The trained
+    # model is registered as production_grade because the donor pool is in
+    # the production band; nothing about this is research-mode.
     t = time.perf_counter()
-    train_result = train_pie_model(name="pie_random_forest_demo", n_bootstrap=80)
+    demo_grid = [
+        {
+            "n_estimators": 150,
+            "max_depth": 10,
+            "min_samples_leaf": 3,
+            "max_features": "sqrt",
+        }
+    ]
+    train_result = train_pie_model(
+        name="pie_random_forest_demo",
+        n_bootstrap=20,
+        grid=demo_grid,
+        n_splits=3,
+    )
     durations["train"] = time.perf_counter() - t
 
     # 6. Hold-out-one-level for every segmentation var (so risk badges populate)
@@ -142,8 +159,10 @@ def seed(csv_path: Path | None = None) -> dict:
     label_rows = read_table("rct_labels")
     for var in SEGMENTATION_VARS:
         try:
+            # n_iterations=3 keeps the demo seed under two minutes overall;
+            # production callers should use the default (50) via the router.
             results = run_extrapolation_test(
-                feat_rows, label_rows, var, n_iterations=10
+                feat_rows, label_rows, var, n_iterations=3
             )
             _persist_holdout_results(results)
         except ValueError:

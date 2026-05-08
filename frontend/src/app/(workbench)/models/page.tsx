@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { SummaryCard } from "@/components/summary-card";
+
 import {
   type HoldoutResponse,
   type ModelMetric,
@@ -116,17 +118,33 @@ export default function ModelsPage() {
 
   return (
     <main className="container py-12">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 2 · Model Trust Dashboard
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Train, evaluate, promote</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Trust before UX. Inspect weighted R², bootstrap CI, R² ceiling, the
-          Figure-2 ablation, LCC diagnostics, and hold-out-one-level
-          extrapolation before any model goes to the prediction UI.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            The trust layer that ships before any prediction UI. Train a
+            model, then read the diagnostics: <strong>weighted R²</strong>{" "}
+            (cost-weighted goodness of fit), <strong>bootstrap CI</strong>{" "}
+            (uncertainty band on R²), <strong>R² ceiling</strong> (theoretical
+            upper bound from outcome noise — paper §5.2), the{" "}
+            <strong>ablation chart</strong> (paper Figure 2: which features
+            carry signal), and <strong>hold-out-one-level</strong>{" "}
+            extrapolation per segmentation variable (paper Table 1).
+          </>
+        }
+        recommendations={[
+          "Train a model only after the donor pool reaches research-mode (≥200 RCTs); production-mode (≥400) removes the watermark.",
+          "Run hold-out-one-level on every segmentation var before promoting to production — flagged as severe = retrain on a refreshed pool.",
+          "If R² ≪ R² ceiling, the model is underfit; if R² ≈ R² ceiling, you're near the noise floor and more features won't help.",
+        ]}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

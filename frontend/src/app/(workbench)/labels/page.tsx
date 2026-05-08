@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 import { type GenerateLabelsResponse, generateLabels } from "@/lib/api";
+import { useUploadId } from "@/lib/use-upload-id";
 import { cn } from "@/lib/utils";
+import { SummaryCard } from "@/components/summary-card";
 
 const MC_BADGE: Record<string, string> = {
   sample_split: "bg-emerald-500 text-white",
@@ -13,8 +14,7 @@ const MC_BADGE: Record<string, string> = {
 };
 
 function LabelsInner() {
-  const params = useSearchParams();
-  const uploadId = params.get("upload_id");
+  const { uploadId } = useUploadId();
   const [data, setData] = useState<GenerateLabelsResponse | null>(null);
   const [hasUserLevel, setHasUserLevel] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,21 +51,35 @@ function LabelsInner() {
 
   return (
     <>
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 2 · RCT Label Generator
         </p>
         <h1 className="mt-2 text-3xl font-semibold">ATT, IC, ICPD per RCT</h1>
-        <p className="mt-2 font-mono text-xs text-muted-foreground">
+        <p className="mt-1 font-mono text-xs text-muted-foreground">
           upload_id: {uploadId}
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Labels are computed via the frozen formulas (Eq. 14, 22, 23). The
-          mechanical-correlation defense mode is decided per row: <code>sample_split</code>{" "}
-          when user-level data is available, <code>shared_sample_compromise</code>{" "}
-          otherwise (test-rich pools only), or <code>blocked</code>.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            Each RCT in the upload becomes one labeled training row. The model
+            learns to predict <strong>ICPD</strong> (Incremental Conversions
+            Per Dollar) from a campaign&rsquo;s features. <strong>ATT</strong>{" "}
+            is the average treatment effect, <strong>IC</strong> the
+            incremental conversions, <strong>ICPD = IC / cost</strong> (Eq. 23
+            in the paper). The MC-defense badge tells you how mechanical
+            correlation is handled per row.
+          </>
+        }
+        recommendations={[
+          "sample_split (green) is the gold standard — user-level data was available so test/control are split deterministically.",
+          "shared_sample_compromise (amber) is acceptable when the test pool is large; flag for review if many rows fall here.",
+          "blocked (red) means the row can't be labeled safely — drop or rerun the experiment with cleaner separation.",
+        ]}
+      />
 
       <div className="mb-6 flex items-center gap-4">
         <label className="flex items-center gap-2 text-sm">

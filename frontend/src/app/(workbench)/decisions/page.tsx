@@ -1,7 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+
+import { isDemoMode } from "@/lib/demo-mode";
+import { useUploadId } from "@/lib/use-upload-id";
+import { SummaryCard } from "@/components/summary-card";
 
 import {
   type ActionBand,
@@ -30,8 +33,8 @@ const RISK_BADGE: Record<string, string> = {
 type RiskFloor = "low" | "unknown" | "medium" | "high" | "severe";
 
 function DecisionsInner() {
-  const params = useSearchParams();
-  const [uploadId, setUploadId] = useState(params.get("upload_id") ?? "");
+  const { uploadId: resolvedUploadId } = useUploadId();
+  const [uploadId, setUploadId] = useState(resolvedUploadId ?? "");
   const [modelId, setModelId] = useState("");
   const [riskFloor, setRiskFloor] = useState<RiskFloor>("low");
   const [onlyNonRct, setOnlyNonRct] = useState(true);
@@ -44,7 +47,7 @@ function DecisionsInner() {
     void listModels().then((m) => setModels(m.models));
   }, []);
 
-  const onRun = async () => {
+  const onRun = useCallback(async () => {
     if (!uploadId.trim()) {
       setError("Enter an upload_id");
       return;
@@ -64,26 +67,45 @@ function DecisionsInner() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [uploadId, modelId, riskFloor, onlyNonRct]);
+
+  // Demo mode: auto-trigger so the page renders populated on first visit.
+  useEffect(() => {
+    if (isDemoMode() && uploadId && !data && !busy) void onRun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadId]);
 
   return (
     <main className="container py-12">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 3 · Decision Recommendations
         </p>
         <h1 className="mt-2 text-3xl font-semibold">
           Rank a portfolio with risk gates
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Advisory ranking only. Each campaign is sorted by risk-adjusted
-          ICPD (CI lower bound × risk multiplier) and tagged with one of:
-          <strong> promote</strong>, <strong>hold</strong>,{" "}
-          <strong>deprioritize</strong>, or <strong>block</strong>.
-          Phase 4.2&rsquo;s Decision Simulator extends this with explicit
-          budget redistribution.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            Each campaign gets one of four advisory actions, sorted by
+            risk-adjusted ICPD (CI lower bound × risk multiplier).
+            <strong> promote</strong> = top-tercile risk-adjusted ICPD with
+            low/unknown risk. <strong>hold</strong> = below tercile or medium
+            risk. <strong>deprioritize</strong> = high risk OR CI-lower ≤ 0.
+            <strong> block</strong> = severe extrapolation risk (auto-sinks
+            to bottom). The <em>projected lift</em> compares mean ICPD across
+            all candidates vs. the campaigns we&rsquo;d keep.
+          </>
+        }
+        recommendations={[
+          "Use the risk floor to control how aggressive 'promote' can be — set 'low' for the strictest gate.",
+          "Lift figures vanish for research-mode models — Phase 4.2 simulator hard-blocks them anyway.",
+          "Read the per-row rationale before acting; the recommendation isn't a command, it's a starting point.",
+        ]}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

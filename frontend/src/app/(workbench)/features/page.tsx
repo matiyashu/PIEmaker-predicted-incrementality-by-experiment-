@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 import { type BuildFeaturesResponse, buildFeatures } from "@/lib/api";
+import { useUploadId } from "@/lib/use-upload-id";
+import { SummaryCard } from "@/components/summary-card";
 
 function FeaturesInner() {
-  const params = useSearchParams();
-  const uploadId = params.get("upload_id");
+  const { uploadId } = useUploadId();
   const [mode, setMode] = useState<"training" | "scoring">("training");
   const [data, setData] = useState<BuildFeaturesResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,21 +44,37 @@ function FeaturesInner() {
 
   return (
     <>
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 2 · Feature Engineering Studio
         </p>
         <h1 className="mt-2 text-3xl font-semibold">X_pre + X_post</h1>
-        <p className="mt-2 font-mono text-xs text-muted-foreground">
+        <p className="mt-1 font-mono text-xs text-muted-foreground">
           upload_id: {uploadId}
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Pre-determined features are knowable before launch; post-determined
-          features only after the campaign runs. v3 adds three pre features:
-          conversion_optimization, custom_audience,
-          advertiser_platform_experience_months.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            Two feature families. <strong>X_pre</strong> is everything
+            knowable <em>before</em> a campaign launches (vertical, audience,
+            objective, creative format, planned spend tier) — these power
+            forward-looking forecasts. <strong>X_post</strong> is the
+            post-mortem signal (CTR, exposure rate, LCC-7d/$, conversions/$)
+            — paper Figure 2 shows these dominate the model&rsquo;s explanatory
+            power. v3 adds three new X_pre fields:
+            conversion_optimization, custom_audience, and
+            advertiser_platform_experience_months.
+          </>
+        }
+        recommendations={[
+          "Use mode=training to feed the donor-pool labels into the model.",
+          "Switch to mode=scoring to engineer features for new campaigns you want to forecast.",
+          "Missing X_post columns? The model still predicts from X_pre alone — useful for pre-launch forecasts, but expect lower R² without LCC signals.",
+        ]}
+      />
 
       <div className="mb-6 flex items-center gap-4">
         <label className="flex items-center gap-2 text-sm">

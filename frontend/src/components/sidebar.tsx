@@ -6,12 +6,14 @@ import {
   Activity,
   BarChart3,
   Beaker,
+  BookOpen,
   Brain,
   Database,
   GaugeCircle,
   LayoutDashboard,
   ListChecks,
   ScanSearch,
+  Settings,
   Sparkles,
   Sliders,
   Target,
@@ -68,6 +70,13 @@ const groups: NavGroup[] = [
     items: [
       { href: "/drift", label: "Drift", icon: ScanSearch },
       { href: "/simulator", label: "Simulator", icon: Sliders },
+    ],
+  },
+  {
+    group: "Help",
+    items: [
+      { href: "/faq", label: "FAQ & glossary", icon: BookOpen },
+      { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];

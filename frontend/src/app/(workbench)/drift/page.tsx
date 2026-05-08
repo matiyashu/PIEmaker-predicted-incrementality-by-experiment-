@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 import {
   type DriftResponse,
@@ -9,7 +8,10 @@ import {
   type DriftVerdict,
   checkDrift,
 } from "@/lib/api";
+import { isDemoMode } from "@/lib/demo-mode";
+import { useUploadId } from "@/lib/use-upload-id";
 import { cn } from "@/lib/utils";
+import { SummaryCard } from "@/components/summary-card";
 
 const SEVERITY_BADGE: Record<DriftSeverity, string> = {
   stable: "bg-emerald-500 text-white",
@@ -24,15 +26,15 @@ const VERDICT_BADGE: Record<DriftVerdict, string> = {
 };
 
 function DriftInner() {
-  const params = useSearchParams();
-  const [uploadId, setUploadId] = useState(params.get("upload_id") ?? "");
+  const { uploadId: resolvedUploadId } = useUploadId();
+  const [uploadId, setUploadId] = useState(resolvedUploadId ?? "");
   const [onlyNonRct, setOnlyNonRct] = useState(true);
   const [data, setData] = useState<DriftResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const onRun = async () => {
+  const onRun = useCallback(async () => {
     if (!uploadId.trim()) {
       setError("Enter an upload_id");
       return;
@@ -48,25 +50,44 @@ function DriftInner() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [uploadId, onlyNonRct]);
+
+  useEffect(() => {
+    if (isDemoMode() && uploadId && !data && !busy) void onRun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadId]);
 
   const maxPsiDisplay = data ? Math.max(0.5, data.max_psi) : 0.5;
 
   return (
     <main className="container py-12">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 4 · Drift Monitoring
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Feature distribution drift</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Population Stability Index (PSI) per feature: scoring distribution
-          vs. training feature_store. Standard bands: <strong>stable</strong>{" "}
-          (PSI &lt; 0.10), <strong>moderate</strong> (0.10–0.25),{" "}
-          <strong>severe</strong> (≥ 0.25). Verdict: stable, watch (3+ moderate
-          drifters), or retrain_recommended (any severe drifter).
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            Population Stability Index (PSI) per feature, comparing the
+            scoring distribution against the training set the model was
+            built on. Bands: <strong>stable &lt;0.10</strong>,{" "}
+            <strong>moderate 0.10–0.25</strong>,{" "}
+            <strong>severe ≥0.25</strong>. The verdict aggregates: any severe
+            → <em>retrain_recommended</em>; ≥3 moderate (no severe) →{" "}
+            <em>watch</em>; otherwise <em>stable</em>.
+          </>
+        }
+        recommendations={[
+          "Retrain when 'retrain_recommended' fires — your incoming traffic now differs from what the model learned.",
+          "Click any feature row to see the bin-level expected vs actual share — pinpoints exactly where the distribution shifted.",
+          "Categorical drift on 'vertical' or 'audience_type' often signals a new advertiser segment; flag for shadow-RCT.",
+        ]}
+        tone={data?.verdict === "retrain_recommended" ? "warning" : "info"}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

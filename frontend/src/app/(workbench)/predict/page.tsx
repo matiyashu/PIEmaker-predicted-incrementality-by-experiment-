@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { SummaryCard } from "@/components/summary-card";
+
 import {
   type ModelRecord,
   type PredictionRun,
@@ -98,18 +100,30 @@ export default function PredictPage() {
 
   return (
     <main className="container py-12">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 3 · Prediction Workbench
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Forecast a campaign</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Score a single campaign spec against a registered model. The
-          confidence band comes from the model&rsquo;s bootstrap CI; segment
-          risk badges come from the most recent hold-out-one-level run on the
-          Model Trust page. Research-mode models add a watermark.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            Single-campaign forecast. Fill in the planned spec; the model
+            returns predicted ICPD with a 95% confidence band derived from
+            the training bootstrap. <strong>Segment risk badges</strong>{" "}
+            tell you if this campaign falls in a regime the model has shaky
+            evidence for (high penalty in the hold-out-one-level test).
+          </>
+        }
+        recommendations={[
+          "If a research-mode watermark appears, treat the prediction as advisory — the donor pool is too small for production.",
+          "Wide confidence band → high uncertainty; consider running a real RCT before committing budget.",
+          "Severe segment risk → the model has never seen a campaign like this; trust the LCC benchmark or a shadow RCT instead.",
+        ]}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

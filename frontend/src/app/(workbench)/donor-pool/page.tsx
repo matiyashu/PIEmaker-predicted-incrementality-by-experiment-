@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 import {
   type AgingResponse,
@@ -17,7 +16,9 @@ import {
   listEligibleRcts,
   promoteRcts,
 } from "@/lib/api";
+import { useUploadId } from "@/lib/use-upload-id";
 import { cn } from "@/lib/utils";
+import { SummaryCard } from "@/components/summary-card";
 
 const BAND_BADGE: Record<PoolStatus["band"], string> = {
   blocked: "bg-destructive text-white",
@@ -33,8 +34,7 @@ const RISK_BADGE: Record<AgingResponse["extrapolation_risk"], string> = {
 };
 
 function DonorPoolInner() {
-  const params = useSearchParams();
-  const uploadId = params.get("upload_id");
+  const { uploadId } = useUploadId();
 
   const [status, setStatus] = useState<PoolStatus | null>(null);
   const [eligible, setEligible] = useState<EligibleRct[] | null>(null);
@@ -113,18 +113,31 @@ function DonorPoolInner() {
 
   return (
     <>
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 2 · Donor Pool Manager
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Curate your training pool</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Admit RCTs into the donor pool. Training is gated by pool size:
-          &lt;200 blocks, 200–399 is research-only, 400–1599 is production,
-          ≥1600 is full production. Year-to-year drift carries a 21pp R² penalty
-          (PDF Table 1) — watch the aging indicator.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            Each row is a randomized controlled trial (RCT) the model can
+            learn from. The <strong>quality score</strong> blends test-pool
+            size, conversion volume, duration, and balance — anything ≥70 is
+            production-grade. The <strong>size band</strong> badge gates
+            training: ≥400 admitted RCTs flips the pool from research to
+            production (no watermark on predictions).
+          </>
+        }
+        recommendations={[
+          "Promote high-quality RCTs (score ≥70) first — they reduce extrapolation risk most.",
+          "Watch the aging indicator: if <50% of admitted RCTs are from the same calendar year, expect a 21pp R² penalty (PDF Table 1).",
+          "Coverage gaps in the heatmap → run a shadow RCT in the missing (vertical, funnel, audience) cell.",
+        ]}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

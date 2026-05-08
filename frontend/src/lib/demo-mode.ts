@@ -5,6 +5,8 @@ const KEY = "pie:demo";
 
 export function isDemoMode(): boolean {
   if (typeof window === "undefined") return false;
+  // Build-time forced demo (e.g. Vercel deploys without a backend).
+  if (process.env.NEXT_PUBLIC_FORCE_DEMO === "1") return true;
   // Honour ?demo=1 in the current URL even before localStorage is synced —
   // covers the first-paint API calls that fire before any banner mounts.
   // Persisting to localStorage keeps subsequent navigation in demo mode

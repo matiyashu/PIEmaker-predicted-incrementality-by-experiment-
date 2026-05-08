@@ -1,7 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+
+import { isDemoMode } from "@/lib/demo-mode";
+import { useUploadId } from "@/lib/use-upload-id";
+import { SummaryCard } from "@/components/summary-card";
 import {
   Bar,
   BarChart,
@@ -60,8 +63,8 @@ const RISK_BADGE: Record<string, string> = {
 type SortKey = "icpd_desc" | "icpd_asc" | "risk_desc";
 
 function PortfolioInner() {
-  const params = useSearchParams();
-  const initialUploadId = params.get("upload_id") ?? "";
+  const { uploadId: resolvedUploadId } = useUploadId();
+  const initialUploadId = resolvedUploadId ?? "";
 
   const [uploadId, setUploadId] = useState(initialUploadId);
   const [modelId, setModelId] = useState("");
@@ -77,7 +80,7 @@ function PortfolioInner() {
     void listModels().then((m) => setModels(m.models));
   }, []);
 
-  const onRun = async () => {
+  const onRun = useCallback(async () => {
     if (!uploadId.trim()) {
       setError("Enter an upload_id");
       return;
@@ -96,7 +99,15 @@ function PortfolioInner() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [uploadId, modelId, onlyNonRct]);
+
+  // In demo mode, auto-trigger the score so viewers don't have to click.
+  useEffect(() => {
+    if (isDemoMode() && uploadId && !data && !busy) {
+      void onRun();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadId]);
 
   const sortedRuns = useMemo<PredictionRun[]>(() => {
     if (!data) return [];
@@ -119,18 +130,32 @@ function PortfolioInner() {
 
   return (
     <main className="container py-12">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 3 · Portfolio Scoring
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Score a media plan</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Bulk-score every non-RCT row in an upload against a registered
-          model. One model selection per call; aggregates surface mean,
-          median, p10/p90, and segment-risk counts so you can see the shape
-          of the portfolio at a glance.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            One forecast per non-RCT campaign in your upload. The{" "}
+            <strong>aggregates</strong> tell you the shape of the portfolio at
+            a glance: <em>mean ICPD</em> is expected efficiency, <em>p10/p90</em>{" "}
+            is the spread, <em>risk distribution</em> shows how many campaigns
+            sit on shaky extrapolation ground. Each row carries a 95% CI from
+            the training bootstrap and a worst-segment risk badge from the
+            most recent hold-out-one-level run.
+          </>
+        }
+        recommendations={[
+          "Sort by 'Risk (worst first)' to see which campaigns to flag for shadow-RCT investment.",
+          "Filter to 'severe' or 'high' risk — those are candidates for the Decisions page to deprioritize or block.",
+          "Mean ICPD × total budget = expected portfolio incremental conversions. Compare against current LCC-based forecasts.",
+        ]}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

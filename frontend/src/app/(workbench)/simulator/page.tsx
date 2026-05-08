@@ -1,7 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+
+import { isDemoMode } from "@/lib/demo-mode";
+import { useUploadId } from "@/lib/use-upload-id";
+import { SummaryCard } from "@/components/summary-card";
 import {
   Bar,
   BarChart,
@@ -31,8 +34,8 @@ const ACTION_BADGE: Record<ActionBand, string> = {
 };
 
 function SimulatorInner() {
-  const params = useSearchParams();
-  const [uploadId, setUploadId] = useState(params.get("upload_id") ?? "");
+  const { uploadId: resolvedUploadId } = useUploadId();
+  const [uploadId, setUploadId] = useState(resolvedUploadId ?? "");
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [modelId, setModelId] = useState("");
   const [capMultiplier, setCapMultiplier] = useState(2.0);
@@ -49,7 +52,7 @@ function SimulatorInner() {
     void listModels("production").then((m) => setModels(m.models));
   }, []);
 
-  const onRun = async () => {
+  const onRun = useCallback(async () => {
     if (!uploadId.trim()) {
       setError("Enter an upload_id");
       return;
@@ -73,22 +76,42 @@ function SimulatorInner() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [uploadId, modelId, capMultiplier, totalBudgetOverride, riskFloor, onlyNonRct]);
+
+  useEffect(() => {
+    if (isDemoMode() && uploadId && !data && !busy) void onRun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadId]);
 
   return (
     <main className="container py-12">
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="text-sm uppercase tracking-widest text-muted-foreground">
           Phase 4 · Decision Simulator
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Reallocate the budget</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Production-grade only. Reallocates total budget across non-blocked
-          campaigns proportional to risk-adjusted ICPD, subject to a per-
-          campaign cap (no campaign can grow beyond cap × original spend).
-          Surfaces projected incremental conversion lift before you commit.
-        </p>
       </header>
+
+      <SummaryCard
+        title="What you're seeing"
+        body={
+          <>
+            A what-if budget reallocation: total spend stays constant, but
+            money shifts toward campaigns with higher risk-adjusted ICPD.
+            The <strong>cap multiplier</strong> bounds how much any single
+            campaign can grow (e.g. 2× = no campaign exceeds 2x its
+            original spend after reallocation). <strong>IC lift %</strong> is
+            the projected uplift in total incremental conversions if you
+            execute the proposed allocation. Production-grade models only —
+            research models are hard-blocked.
+          </>
+        }
+        recommendations={[
+          "Set cap=1.0 to preserve current allocation as a baseline; raise to 2.0+ to see how much lift the model thinks it can wring out.",
+          "Override total budget to test different spend levels before approving.",
+          "Capped rows show where the simulator wanted to invest more but ran into the ceiling — candidates for higher per-campaign caps if you trust those segments.",
+        ]}
+      />
 
       {error && (
         <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

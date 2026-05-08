@@ -211,7 +211,68 @@ gantt
     4.2 Decision simulator            :done, p42, after p41, 1d
 ```
 
-V4 is coming soon.
+V4 is coming soon!!
+
+## What’s Coming in PIEmaker V4
+
+PIEmaker V4 will focus on turning the current workbench into a more research-aligned, production-ready incrementality platform.
+
+- **Paper-faithful model evaluation**
+  - True out-of-fold weighted R²
+  - 10-fold paper-mode cross-validation
+  - Real campaign-cost weighting instead of proxy weights
+
+- **Formula guardrails**
+  - Locked ATT, IC, ICPD, weighted R², and disagreement formulas
+  - Visual formula reference cards for future development
+  - Clear separation between paper-backed metrics and PIEmaker extensions
+
+- **Expanded model trust dashboard**
+  - Predicted vs observed ICPD scatter plot
+  - Residual diagnostics
+  - Feature ablation chart with error bars
+  - Donor-pool size vs R² curve
+  - Feature importance / SHAP-style explanations
+
+- **Attribution calibration tools**
+  - Raw LCC-7D vs true ICPD calibration plot
+  - Bias ratio by vertical and funnel
+  - OLS slope and Spearman correlation diagnostics
+  - Attribution-window comparison for 1h, 1d, 7d, and 28d LCC
+
+- **Generalization and extrapolation testing**
+  - Existing-advertiser vs new-advertiser validation
+  - Hold-out-one-level tests for campaign year, advertiser size, vertical, audience type, custom audience, and conversion optimization
+  - Full distribution views for within-segment vs extrapolated performance
+
+- **Decision quality analytics**
+  - Disagreement probability curves
+  - Type I and Type II error breakdowns
+  - PIE vs Raw LCC-7D decision comparison
+  - Threshold sensitivity analysis
+
+- **Shadow-RCT recommendations**
+  - Coverage gap detection
+  - Segment-level donor-pool health checks
+  - Suggested RCTs for weak or high-risk model regions
+
+- **Drift and monitoring upgrades**
+  - Drift trends over time
+  - PSI bin-contribution charts
+  - Model performance across retraining versions
+  - Better retraining recommendations
+
+- **Production infrastructure**
+  - Postgres persistence
+  - MLflow/S3 model registry
+  - Async training jobs with Celery/Redis
+  - CI checks for backend tests, frontend build, and type safety
+
+- **Governance and release safety**
+  - Model cards
+  - Run manifests
+  - Promotion gates
+  - Audit logs for donor-pool edits, model promotion, and simulator settings
 
 ---
 

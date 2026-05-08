@@ -13,7 +13,7 @@
   <img alt="backend" src="https://img.shields.io/badge/backend-FastAPI%20%C2%B7%20Python%203.11-3776ab?style=flat-square"/>
   <img alt="frontend" src="https://img.shields.io/badge/frontend-Next.js%2014%20%C2%B7%20Recharts-000000?style=flat-square"/>
   <img alt="tests" src="https://img.shields.io/badge/backend_tests-221%20passing-10b981?style=flat-square"/>
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"/>
+  <img alt="license" src="https://img.shields.io/badge/license-OPEN-SOURCE-blue?style=flat-square"/>
 </p>
 
 ---

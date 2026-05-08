@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import {
   type HoldoutResponse,
@@ -418,28 +427,30 @@ function AblationChart({
 }: {
   rows: { spec: string; weighted_r2: number }[];
 }) {
-  const max = Math.max(0.1, ...rows.map((r) => Math.max(0, r.weighted_r2)));
+  const data = rows.map((r) => ({
+    spec: r.spec,
+    weighted_r2: Number.isFinite(r.weighted_r2) ? r.weighted_r2 : 0,
+  }));
   return (
-    <ul className="space-y-2">
-      {rows.map((r) => {
-        const w = Number.isFinite(r.weighted_r2) ? r.weighted_r2 : 0;
-        const pct = Math.max(0, Math.min(100, (w / max) * 100));
-        return (
-          <li key={r.spec} className="text-sm">
-            <div className="flex items-baseline justify-between">
-              <span className="font-mono text-xs">{r.spec}</span>
-              <span className="tabular-nums">{w.toFixed(3)}</span>
-            </div>
-            <div className="mt-1 h-2 w-full rounded-full bg-secondary">
-              <div
-                className="h-2 rounded-full bg-emerald-500"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis
+          dataKey="spec"
+          tick={{ fontSize: 10 }}
+          interval={0}
+          angle={-15}
+          textAnchor="end"
+          height={60}
+        />
+        <YAxis tick={{ fontSize: 11 }} />
+        <Tooltip
+          formatter={(v: number) => v.toFixed(3)}
+          labelFormatter={(l) => `Spec: ${l}`}
+        />
+        <Bar dataKey="weighted_r2" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 

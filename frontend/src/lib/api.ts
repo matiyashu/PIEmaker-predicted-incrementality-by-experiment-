@@ -677,6 +677,62 @@ export interface SimulatorResponse {
   rationale: string;
 }
 
+// --- Demo seeding + Dashboard --------------------------------------------
+
+export interface DemoStatus {
+  seeded: boolean;
+  last_seeded_at: string | null;
+  model_count: number;
+  donor_pool_admitted: number;
+  prediction_run_count: number;
+  holdout_var_count: number;
+}
+
+export interface DemoSeedResult {
+  upload_id: string;
+  model: ModelRecord;
+  weighted_r_squared: number;
+  n_rcts: number;
+  n_non_rcts: number;
+  donor_pool_band: PoolBand;
+  durations: Record<string, number>;
+}
+
+export const getDemoStatus = (): Promise<DemoStatus> =>
+  jsonFetch(`${BASE}/api/demo/status`, { method: "GET" });
+
+export const seedDemo = (): Promise<DemoSeedResult> =>
+  jsonFetch(`${BASE}/api/demo/seed`, { method: "POST" });
+
+export interface DashboardSummary {
+  donor_pool: PoolStatus;
+  latest_model:
+    | (ModelRecord & {
+        weighted_r_squared: number | null;
+        bootstrap: { mean: number; ci_lower: number | null; ci_upper: number | null } | null;
+        ablation: { spec: string; weighted_r2: number }[];
+      })
+    | null;
+  portfolio: {
+    n_runs: number;
+    mean_icpd: number;
+    min_icpd: number;
+    max_icpd: number;
+    risk_counts: Record<string, number>;
+    icpd_values: number[];
+  } | null;
+  holdouts: {
+    n_levels: number;
+    n_vars: number;
+    severity_counts: Record<string, number>;
+  } | null;
+  n_models_total: number;
+  n_prediction_runs_total: number;
+}
+
+export const getDashboardSummary = (): Promise<DashboardSummary> =>
+  jsonFetch(`${BASE}/api/dashboard/summary`, { method: "GET" });
+
 export const runSimulator = (options: {
   uploadId?: string;
   rows?: Record<string, unknown>[];

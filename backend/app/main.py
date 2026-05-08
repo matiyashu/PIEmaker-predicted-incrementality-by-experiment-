@@ -22,7 +22,9 @@ from app.routers import donor_pool as donor_pool_router
 from app.routers import features as features_router
 from app.routers import labels as labels_router
 from app.routers import models as models_router
+from app.routers import dashboard as dashboard_router
 from app.routers import decisions as decisions_router
+from app.routers import demo as demo_router
 from app.routers import drift as drift_router
 from app.routers import predictions as predictions_router
 from app.routers import simulator as simulator_router
@@ -68,6 +70,10 @@ app.include_router(decisions_router.router)
 # Phase 4 routers (Prompts 4.1, 4.2)
 app.include_router(drift_router.router)
 app.include_router(simulator_router.router)
+
+# Demo seeding + dashboard summary (UX support, post-build-plan)
+app.include_router(demo_router.router)
+app.include_router(dashboard_router.router)
 
 
 @app.get("/health")

@@ -2,6 +2,16 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import {
   type ActionBand,
@@ -223,6 +233,43 @@ function SimulatorInner() {
               cap_multiplier: {data.cap_multiplier}× · risk_floor:{" "}
               {data.risk_floor}
             </p>
+          </section>
+
+          <section className="mb-6 rounded-lg border bg-card p-5 shadow-sm">
+            <p className="mb-1 font-medium">Original vs proposed spend</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Top {Math.min(20, data.allocations.length)} campaigns by absolute Δ$
+            </p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={[...data.allocations]
+                  .sort(
+                    (a, b) =>
+                      Math.abs(b.delta_spend) - Math.abs(a.delta_spend),
+                  )
+                  .slice(0, 20)
+                  .map((a) => ({
+                    campaign: a.campaign_id,
+                    original: a.original_spend,
+                    proposed: a.proposed_spend,
+                  }))}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="campaign"
+                  tick={{ fontSize: 9 }}
+                  interval={0}
+                  angle={-30}
+                  textAnchor="end"
+                  height={70}
+                />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
+                <Legend />
+                <Bar dataKey="original" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="proposed" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </section>
 
           <section>

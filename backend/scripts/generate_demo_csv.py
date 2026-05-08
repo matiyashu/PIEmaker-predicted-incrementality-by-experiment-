@@ -93,7 +93,7 @@ def _row(i: int, *, rng: random.Random, is_rct: bool) -> dict:
 
 def main(out_path: str | None = None) -> int:
     rng = random.Random(2026)
-    rcts = [_row(i, rng=rng, is_rct=True) for i in range(250)]
+    rcts = [_row(i, rng=rng, is_rct=True) for i in range(400)]
     candidates = [_row(i, rng=rng, is_rct=False) for i in range(50)]
 
     df = pd.DataFrame(rcts + candidates)

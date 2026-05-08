@@ -2,6 +2,18 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import {
   type ModelRecord,
@@ -11,6 +23,31 @@ import {
   scorePortfolio,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+const RISK_HEX: Record<string, string> = {
+  severe: "#ef4444",
+  high: "#f97316",
+  medium: "#f59e0b",
+  low: "#10b981",
+  unknown: "#94a3b8",
+};
+
+function buildHistogram(values: number[], bins = 10) {
+  if (!values.length) return [];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return [{ bin: min.toFixed(2), count: values.length }];
+  const width = (max - min) / bins;
+  const counts = new Array(bins).fill(0);
+  for (const v of values) {
+    const idx = Math.min(bins - 1, Math.floor((v - min) / width));
+    counts[idx]++;
+  }
+  return counts.map((c, i) => ({
+    bin: (min + i * width).toFixed(2),
+    count: c,
+  }));
+}
 
 const RISK_BADGE: Record<string, string> = {
   severe: "bg-destructive text-white",
@@ -180,25 +217,66 @@ function PortfolioInner() {
             />
           </section>
 
-          <section className="mb-6 rounded-md border p-4">
-            <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-              Risk distribution
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {(Object.entries(data.aggregates.risk_counts) as [
-                keyof typeof RISK_BADGE,
-                number,
-              ][]).map(([risk, count]) => (
-                <span
-                  key={risk}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium",
-                    RISK_BADGE[risk] ?? "bg-muted",
-                  )}
-                >
-                  {risk}: {count}
-                </span>
-              ))}
+          <section className="mb-6 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border bg-card p-5 shadow-sm">
+              <p className="mb-1 font-medium">Predicted ICPD distribution</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Histogram across {data.runs.length} scored campaigns
+              </p>
+              {data.runs.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={buildHistogram(data.runs.map((r) => r.predicted_icpd))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="bin" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : null}
+            </div>
+
+            <div className="rounded-lg border bg-card p-5 shadow-sm">
+              <p className="mb-1 font-medium">Risk distribution</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Worst extrapolation risk per campaign
+              </p>
+              {(() => {
+                const pieData = (
+                  Object.entries(data.aggregates.risk_counts) as [
+                    string,
+                    number,
+                  ][]
+                )
+                  .filter(([, v]) => v > 0)
+                  .map(([name, value]) => ({ name, value }));
+                if (!pieData.length)
+                  return (
+                    <p className="text-sm text-muted-foreground">
+                      No risk data available.
+                    </p>
+                  );
+                return (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={45}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        label={(e) => `${e.name}: ${e.value}`}
+                      >
+                        {pieData.map((d) => (
+                          <Cell key={d.name} fill={RISK_HEX[d.name] ?? "#94a3b8"} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                );
+              })()}
             </div>
           </section>
 

@@ -1,89 +1,193 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  Brain,
+  CheckCircle2,
+  Database,
+  GaugeCircle,
+  ScanSearch,
+  ShieldCheck,
+  Sliders,
+  Sparkles,
+} from "lucide-react";
 
-const phases = [
-  { id: 0, title: "Product Foundation — monorepo + frozen formulas", weeks: "0.1", status: "complete" },
-  { id: 1, title: "Upload, Validation, Cleaning, MC Defense", weeks: "1.1, 1.2", status: "complete" },
-  { id: 2, title: "Donor Pool, Labels, Features, Model Trust", weeks: "2.1–2.4", status: "complete" },
-  { id: 3, title: "Predict, Portfolio Scoring, Decision Recommendations", weeks: "3.1–3.3", status: "complete" },
-  { id: 4, title: "Drift Monitoring, Decision Simulator", weeks: "4.1, 4.2", status: "complete" },
+const features = [
+  {
+    icon: ShieldCheck,
+    title: "Trust before UX",
+    body: "Frozen formula contracts (ATT, IC, ICPD) ship before the prediction UI. R²-ceiling tells you the upper bound a model can achieve given outcome noise.",
+  },
+  {
+    icon: Database,
+    title: "Donor-pool gating",
+    body: "Size-band thresholds (200 / 400 / 1600 RCTs) gate training. Below 200 = blocked; 200–399 = research-mode watermark; ≥400 = production.",
+  },
+  {
+    icon: Brain,
+    title: "Hold-out-one-level extrapolation",
+    body: "Per-level R² penalty across 6 segmentation variables surfaces extrapolation risk per campaign — the paper Table 1 finding, in your dashboard.",
+  },
+  {
+    icon: Sparkles,
+    title: "Decision recommendations",
+    body: "Risk-adjusted ranking with action bands (promote / hold / deprioritize / block). Severe extrapolation risk auto-sinks to the bottom.",
+  },
+  {
+    icon: ScanSearch,
+    title: "Drift monitoring",
+    body: "PSI per feature, scoring distribution vs. training. Verdict: stable, watch (≥3 moderate), or retrain_recommended (any severe). No Evidently dependency.",
+  },
+  {
+    icon: Sliders,
+    title: "Decision Simulator",
+    body: "What-if budget reallocation with risk-adjusted weights and per-campaign cap. Production-only — research models hard-blocked.",
+  },
 ];
 
-const quickLinks: { href: "/upload" | "/donor-pool" | "/models" | "/predict" | "/portfolio" | "/decisions" | "/drift" | "/simulator"; label: string; hint: string }[] = [
-  { href: "/upload", label: "1. Upload", hint: "drop a CSV → get an upload_id" },
-  { href: "/donor-pool", label: "2. Donor Pool", hint: "promote RCTs into the training pool" },
-  { href: "/models", label: "3. Model Trust", hint: "train + inspect ablation, hold-out" },
-  { href: "/predict", label: "4. Predict", hint: "score a single campaign" },
-  { href: "/portfolio", label: "5. Portfolio", hint: "score every non-RCT row in an upload" },
-  { href: "/decisions", label: "6. Decisions", hint: "rank with risk gates" },
-  { href: "/drift", label: "7. Drift", hint: "PSI vs. training distribution" },
-  { href: "/simulator", label: "8. Simulator", hint: "reallocate budget" },
+const stack = [
+  "Next.js 14",
+  "FastAPI · Python 3.11",
+  "scikit-learn",
+  "Random Forest + ablation",
+  "PSI drift",
+  "Recharts",
 ];
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <main className="container py-12">
-      <header className="mb-12 border-b pb-8">
-        <p className="text-sm uppercase tracking-widest text-muted-foreground">
-          PIE Measurement Workbench
-        </p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight">PIEmaker</h1>
-        <p className="mt-3 max-w-2xl text-muted-foreground">
-          Campaign-level incrementality prediction. Built on Gordon, Moakler &amp;
-          Zettelmeyer (NBER w35044, April 2026). Trust before UX — formula
-          contracts and the model trust layer ship before the prediction UI.
-        </p>
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.15),transparent_60%)]" />
+
+      <header className="container flex items-center justify-between py-6">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-md bg-primary text-primary-foreground">
+            <GaugeCircle className="h-5 w-5" />
+          </span>
+          <span className="text-lg font-semibold tracking-tight">PIEmaker</span>
+        </Link>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-secondary"
+        >
+          Launch app
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </header>
 
-      <section className="mb-12">
-        <h2 className="mb-4 text-xl font-medium">Build phases</h2>
-        <ol className="space-y-3">
-          {phases.map((phase) => (
-            <li
-              key={phase.id}
-              className="flex items-center justify-between rounded-md border p-4"
-            >
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Phase {phase.id} · prompts {phase.weeks}
-                </p>
-                <p className="font-medium">{phase.title}</p>
-              </div>
-              <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-medium text-white">
-                {phase.status}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="mb-12">
-        <h2 className="mb-4 text-xl font-medium">Click-through tour</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Suggested order: upload → donor pool → train a model → walk through
-          predictions/decisions/drift/simulator.
-        </p>
-        <div className="grid gap-3 md:grid-cols-2">
-          {quickLinks.map((link) => (
+      <section className="container pt-12 pb-20 md:pt-20 md:pb-28">
+        <div className="max-w-3xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+            Build plan v3 complete · 218 backend tests passing
+          </span>
+          <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
+            Predict campaign incrementality
+            <span className="block bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
+              before you spend the budget.
+            </span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
+            PIEmaker is a campaign-level incrementality prediction workbench
+            built on Gordon, Moakler &amp; Zettelmeyer (NBER w35044, April
+            2026). Frozen formulas, donor-pool gating, hold-out extrapolation,
+            drift monitoring, and a production-only decision simulator —
+            shipped end-to-end.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md border p-4 hover:bg-secondary/40"
+              href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
             >
-              <p className="font-medium">{link.label}</p>
-              <p className="text-sm text-muted-foreground">{link.hint}</p>
+              Launch app
+              <ArrowRight className="h-4 w-4" />
             </Link>
+            <a
+              href="https://github.com/matiyashu/PIEmaker-predicted-incrementality-by-experiment-"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border bg-background px-5 py-2.5 text-sm font-medium hover:bg-secondary"
+            >
+              View source
+            </a>
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">
+            Built by <span className="font-medium text-foreground">Prima Hanura Akbar</span> · Jakarta · 2026
+          </p>
+        </div>
+
+        <div className="mt-10 flex flex-wrap gap-2">
+          {stack.map((s) => (
+            <span
+              key={s}
+              className="rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground"
+            >
+              {s}
+            </span>
           ))}
         </div>
       </section>
 
-      <footer className="mt-16 border-t pt-6 text-sm text-muted-foreground">
-        Backend health:{" "}
-        <Link
-          className="underline hover:text-foreground"
-          href="/api/backend/health"
-        >
-          /api/backend/health
-        </Link>
+      <section className="container pb-24">
+        <div className="mb-10 flex items-end justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-widest text-muted-foreground">
+              What it does
+            </p>
+            <h2 className="mt-1 text-3xl font-semibold tracking-tight">
+              The trust layer ships before the prediction UI
+            </h2>
+          </div>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {features.map((f) => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={f.title}
+                className="rounded-lg border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-md bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 font-medium">{f.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="container pb-24">
+        <div className="rounded-xl border bg-gradient-to-br from-slate-50 to-blue-50 p-10">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            One click to populated demo
+          </h2>
+          <p className="mt-2 max-w-2xl text-muted-foreground">
+            The dashboard auto-seeds 400 RCTs into the donor pool, trains a
+            production-band Random Forest, runs hold-out-one-level on every
+            segmentation variable, and scores 50 candidate campaigns — so
+            every page is populated on arrival.
+          </p>
+          <Link
+            href="/dashboard"
+            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90"
+          >
+            Open the dashboard
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <footer className="border-t">
+        <div className="container flex flex-wrap items-center justify-between gap-4 py-6 text-sm text-muted-foreground">
+          <p>
+            © 2026 PIEmaker · Built by{" "}
+            <span className="font-medium text-foreground">Prima Hanura Akbar</span>
+          </p>
+          <p>
+            Based on NBER w35044 · Gordon, Moakler &amp; Zettelmeyer (April 2026)
+          </p>
+        </div>
       </footer>
     </main>
   );

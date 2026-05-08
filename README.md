@@ -373,7 +373,7 @@ This is a one-author research-and-build project at the moment. Issues and PRs ar
 
 - **Methodology paper**: Brett R. Gordon, Eric Moakler &amp; Florian Zettelmeyer (2026). *Predicted Incrementality from Experiments: A Method to Forecast Ad Effectiveness*. NBER Working Paper [w35044](https://www.nber.org/papers/w35044).
 - **Built by**: [Prima Hanura Akbar](https://github.com/matiyashu) · Jakarta · 2026.
-- **License**: MIT.
+- **License**: Open-source.
 
 ---
 

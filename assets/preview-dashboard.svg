@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="800" height="480">
+  <rect width="800" height="480" fill="#f8fafc"/>
+  <!-- sidebar -->
+  <rect x="0" y="0" width="180" height="480" fill="#f1f5f9"/>
+  <rect x="0" y="0" width="180" height="48" fill="white" stroke="#e2e8f0"/>
+  <rect x="14" y="14" width="20" height="20" rx="4" fill="#2563eb"/>
+  <text x="42" y="29" font-family="ui-sans-serif,system-ui" font-size="11" font-weight="600" fill="#0f172a">PIEmaker</text>
+  <rect x="10" y="64" width="160" height="24" rx="4" fill="#2563eb"/>
+  <text x="22" y="80" font-family="ui-sans-serif,system-ui" font-size="10" fill="white">Dashboard</text>
+  <g font-family="ui-sans-serif,system-ui" font-size="9" fill="#64748b">
+    <text x="22" y="108">DATA</text>
+    <text x="22" y="128">Upload</text><text x="22" y="146">Cleaning</text>
+    <text x="22" y="172">TRUST</text>
+    <text x="22" y="192">Donor Pool</text><text x="22" y="210">Labels</text>
+    <text x="22" y="228">Features</text><text x="22" y="246">Model Trust</text>
+    <text x="22" y="272">DECISIONS</text>
+    <text x="22" y="292">Predict</text><text x="22" y="310">Portfolio</text>
+    <text x="22" y="328">Decisions</text>
+    <text x="22" y="354">OPERATIONS</text>
+    <text x="22" y="374">Drift</text><text x="22" y="392">Simulator</text>
+  </g>
+
+  <!-- main content -->
+  <text x="200" y="40" font-family="ui-sans-serif,system-ui" font-size="9" fill="#64748b">DASHBOARD</text>
+  <text x="200" y="62" font-family="ui-sans-serif,system-ui" font-size="20" font-weight="700" fill="#0f172a">PIEmaker workbench</text>
+
+  <!-- 4 metric cards -->
+  <g font-family="ui-sans-serif,system-ui">
+    <rect x="200" y="84" width="135" height="74" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="212" y="100" font-size="8" fill="#64748b">DONOR POOL</text>
+    <rect x="212" y="108" width="64" height="22" rx="4" fill="#10b981"/>
+    <text x="220" y="123" font-size="11" font-weight="600" fill="white">450 production</text>
+    <text x="212" y="146" font-size="9" fill="#64748b">≥400 RCTs admitted</text>
+
+    <rect x="345" y="84" width="135" height="74" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="357" y="100" font-size="8" fill="#64748b">LATEST MODEL R²</text>
+    <text x="357" y="128" font-size="22" font-weight="700" fill="#0f172a">0.78</text>
+    <text x="357" y="146" font-size="9" fill="#64748b">CI [0.71, 0.84]</text>
+
+    <rect x="490" y="84" width="135" height="74" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="502" y="100" font-size="8" fill="#64748b">PORTFOLIO ICPD</text>
+    <text x="502" y="128" font-size="22" font-weight="700" fill="#0f172a">0.0931</text>
+    <text x="502" y="146" font-size="9" fill="#64748b">n=50 candidates</text>
+
+    <rect x="635" y="84" width="135" height="74" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="647" y="100" font-size="8" fill="#64748b">HOLD-OUT VERDICT</text>
+    <rect x="647" y="108" width="60" height="22" rx="4" fill="#ef4444"/>
+    <text x="655" y="123" font-size="10" font-weight="600" fill="white">retrain</text>
+    <text x="647" y="146" font-size="9" fill="#64748b">18 levels, 6 vars</text>
+  </g>
+
+  <!-- ablation chart -->
+  <g>
+    <rect x="200" y="180" width="280" height="140" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="212" y="198" font-family="ui-sans-serif,system-ui" font-size="11" font-weight="600" fill="#0f172a">Feature ablation</text>
+    <text x="212" y="212" font-family="ui-sans-serif,system-ui" font-size="9" fill="#64748b">Paper Figure 2</text>
+    <g>
+      <rect x="222" y="280" width="40" height="30" fill="#3b82f6" opacity="0.6"/>
+      <rect x="270" y="262" width="40" height="48" fill="#3b82f6" opacity="0.7"/>
+      <rect x="318" y="244" width="40" height="66" fill="#3b82f6" opacity="0.8"/>
+      <rect x="366" y="232" width="40" height="78" fill="#3b82f6"/>
+      <rect x="414" y="252" width="40" height="58" fill="#10b981" opacity="0.8"/>
+    </g>
+    <g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="6" fill="#64748b">
+      <text x="220" y="320" transform="rotate(-15 220 320)">Pre</text>
+      <text x="268" y="320" transform="rotate(-15 268 320)">+Yt</text>
+      <text x="316" y="320" transform="rotate(-15 316 320)">+LCC-7D</text>
+      <text x="364" y="320" transform="rotate(-15 364 320)">Full</text>
+      <text x="412" y="320" transform="rotate(-15 412 320)">Raw</text>
+    </g>
+    <text x="222" y="276" font-family="ui-sans-serif,system-ui" font-size="7" fill="#475569">0.42</text>
+    <text x="270" y="258" font-family="ui-sans-serif,system-ui" font-size="7" fill="#475569">0.55</text>
+    <text x="318" y="240" font-family="ui-sans-serif,system-ui" font-size="7" fill="#475569">0.67</text>
+    <text x="366" y="228" font-family="ui-sans-serif,system-ui" font-size="7" fill="#475569">0.78</text>
+    <text x="414" y="248" font-family="ui-sans-serif,system-ui" font-size="7" fill="#475569">0.61</text>
+  </g>
+
+  <!-- ICPD histogram -->
+  <g>
+    <rect x="490" y="180" width="280" height="140" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="502" y="198" font-family="ui-sans-serif,system-ui" font-size="11" font-weight="600" fill="#0f172a">ICPD distribution</text>
+    <text x="502" y="212" font-family="ui-sans-serif,system-ui" font-size="9" fill="#64748b">Across 50 portfolio runs</text>
+    <g fill="#10b981">
+      <rect x="512" y="290" width="22" height="20"/>
+      <rect x="538" y="270" width="22" height="40"/>
+      <rect x="564" y="250" width="22" height="60"/>
+      <rect x="590" y="230" width="22" height="80"/>
+      <rect x="616" y="240" width="22" height="70"/>
+      <rect x="642" y="260" width="22" height="50"/>
+      <rect x="668" y="278" width="22" height="32"/>
+      <rect x="694" y="290" width="22" height="20"/>
+      <rect x="720" y="298" width="22" height="12"/>
+      <rect x="746" y="304" width="20" height="6"/>
+    </g>
+  </g>
+
+  <!-- risk donut -->
+  <g>
+    <rect x="200" y="340" width="280" height="120" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="212" y="358" font-family="ui-sans-serif,system-ui" font-size="11" font-weight="600" fill="#0f172a">Risk distribution</text>
+    <g transform="translate(280,400)">
+      <circle r="38" fill="none" stroke="#e2e8f0" stroke-width="14"/>
+      <circle r="38" fill="none" stroke="#10b981" stroke-width="14" stroke-dasharray="100 240" transform="rotate(-90)"/>
+      <circle r="38" fill="none" stroke="#f59e0b" stroke-width="14" stroke-dasharray="60 240" stroke-dashoffset="-100" transform="rotate(-90)"/>
+      <circle r="38" fill="none" stroke="#f97316" stroke-width="14" stroke-dasharray="40 240" stroke-dashoffset="-160" transform="rotate(-90)"/>
+      <circle r="38" fill="none" stroke="#ef4444" stroke-width="14" stroke-dasharray="20 240" stroke-dashoffset="-200" transform="rotate(-90)"/>
+    </g>
+    <g font-family="ui-sans-serif,system-ui" font-size="9">
+      <circle cx="360" cy="385" r="4" fill="#10b981"/><text x="370" y="389" fill="#475569">low: 23</text>
+      <circle cx="360" cy="403" r="4" fill="#f59e0b"/><text x="370" y="407" fill="#475569">medium: 12</text>
+      <circle cx="360" cy="421" r="4" fill="#f97316"/><text x="370" y="425" fill="#475569">high: 8</text>
+      <circle cx="360" cy="439" r="4" fill="#ef4444"/><text x="370" y="443" fill="#475569">severe: 5</text>
+    </g>
+  </g>
+
+  <!-- quick links -->
+  <g>
+    <rect x="490" y="340" width="280" height="120" rx="6" fill="white" stroke="#e2e8f0"/>
+    <text x="502" y="358" font-family="ui-sans-serif,system-ui" font-size="11" font-weight="600" fill="#0f172a">Quick actions</text>
+    <g font-family="ui-sans-serif,system-ui" font-size="9" fill="#475569">
+      <rect x="502" y="368" width="256" height="20" rx="4" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="512" y="382">→ Score a single campaign</text>
+      <rect x="502" y="392" width="256" height="20" rx="4" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="512" y="406">→ Score a portfolio</text>
+      <rect x="502" y="416" width="256" height="20" rx="4" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="512" y="430">→ Reallocate budget</text>
+      <rect x="502" y="440" width="256" height="14" rx="4" fill="#f8fafc" stroke="#e2e8f0"/>
+    </g>
+  </g>
+</svg>

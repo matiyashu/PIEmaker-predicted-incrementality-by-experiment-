@@ -8,6 +8,12 @@ CLAUDE.md
 .claude/
 docs/
 
+# --- Exceptions: GitHub-facing project README + visual assets are tracked --
+!README.md
+!LICENSE
+!assets/
+!assets/**
+
 # --- Python -----------------------------------------------------------------
 __pycache__/
 *.py[cod]

@@ -211,7 +211,7 @@ gantt
     4.2 Decision simulator            :done, p42, after p41, 1d
 ```
 
-All 12 prompts shipped to `main`. **221 backend tests passing**, 18 frontend routes, build clean.
+V4 is coming soon.
 
 ---
 

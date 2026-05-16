@@ -1,9 +1,19 @@
 """
-Feature Engineering Studio (Prompt 2.2).
+Feature Engineering Studio (Prompt 2.2 + V.4 Wave 1).
 
-Builds X_pre and X_post features for training and scoring. Includes the three
-new v3 features (conversion_optimization, custom_audience,
-advertiser_platform_experience) per the validation memo.
+Builds X_pre and X_post features for training and scoring. Persists every
+row under a composite key (campaign_id, feature_set_version, mode) so a
+scoring pass over the same campaign no longer silently overwrites the
+training row — that overwrite is what caused several V.3 race conditions.
+
+V.4 also adds three paper-aligned X_pre fields:
+  * advertiser_id    — needed for existing-vs-new advertiser CV (§5.3)
+  * advertiser_size  — controls for advertiser scale (paper feature set)
+  * campaign_year    — year-to-year drift signal (Table 1: 21pp R² penalty)
+
+And persists the true campaign `cost` alongside each row so paper-mode
+evaluation can use it as the weighted-R² weight (replacing the V.3 proxy
+`1/conversions_per_dollar`).
 """
 
 from __future__ import annotations
@@ -25,9 +35,12 @@ X_PRE_FIELDS: list[str] = [
     "vertical",
     "audience_type",
     "funnel_stage",
-    "conversion_optimization",       # v3 NEW
-    "custom_audience",                # v3 NEW
-    "advertiser_platform_experience_months",  # v3 NEW
+    "conversion_optimization",       # v3
+    "custom_audience",                # v3
+    "advertiser_platform_experience_months",  # v3
+    "advertiser_id",                  # V.4 NEW — required for advertiser-cohort CV
+    "advertiser_size",                # V.4 NEW — paper feature set, controls for scale
+    "campaign_year",                  # V.4 NEW — year-to-year drift signal
     "creative_format",
     "placement",
     "bid_strategy",
@@ -38,6 +51,17 @@ X_PRE_FIELDS: list[str] = [
     "quarter",
     "campaign_duration_days",
 ]
+
+
+def composite_key(
+    campaign_id: str, feature_set_version: str, mode: str
+) -> str:
+    """Composite feature_store key (V.4): scoping rows by (campaign, version, mode).
+
+    Used as the upsert key to prevent a scoring pass from overwriting the
+    matching training row for the same campaign.
+    """
+    return f"{campaign_id}|{feature_set_version}|{mode}"
 
 # Post-determined features (X_post) — only knowable after the campaign
 X_POST_FIELDS: list[str] = [
@@ -71,6 +95,8 @@ def _build_x_pre(df: pd.DataFrame) -> pd.DataFrame:
     out["advertiser_platform_experience_months"] = df.get(
         "advertiser_platform_experience_months"
     )
+    out["advertiser_id"] = df.get("advertiser_id")
+    out["advertiser_size"] = df.get("advertiser_size")
     out["creative_format"] = df.get("creative_format")
     out["placement"] = df.get("placement")
     out["bid_strategy"] = df.get("bid_strategy")
@@ -82,9 +108,11 @@ def _build_x_pre(df: pd.DataFrame) -> pd.DataFrame:
         sd = pd.to_datetime(df["start_date"], errors="coerce")
         out["month"] = sd.dt.month
         out["quarter"] = sd.dt.quarter
+        out["campaign_year"] = sd.dt.year
     else:
         out["month"] = None
         out["quarter"] = None
+        out["campaign_year"] = df.get("campaign_year")
     if "start_date" in df.columns and "end_date" in df.columns:
         sd = pd.to_datetime(df["start_date"], errors="coerce")
         ed = pd.to_datetime(df["end_date"], errors="coerce")
@@ -147,11 +175,27 @@ def build_features(
     rows = []
     for idx in df.index:
         cid = str(df.loc[idx, "campaign_id"])
+        # V.4: persist true campaign cost alongside the row so paper-mode
+        # evaluation can use it as the weighted-R² weight.
+        raw_cost = df.loc[idx, "cost"] if "cost" in df.columns else None
+        cost_value: float | None
+        if raw_cost is None or pd.isnull(raw_cost):
+            cost_value = None
+        else:
+            try:
+                cost_value = float(raw_cost)
+            except (TypeError, ValueError):
+                cost_value = None
+
         row = {
+            # V.4 composite key — see composite_key() above. Keeps
+            # campaign_id as its own field for legacy readers.
+            "id": composite_key(cid, feature_set_version, mode),
             "campaign_id": cid,
             "feature_set_version": feature_set_version,
             "mode": mode,
             "sample_id": sample_id,
+            "cost": cost_value,
             "x_pre": {k: x_pre.loc[idx, k] for k in x_pre.columns},
             "x_post": {k: x_post.loc[idx, k] for k in x_post.columns},
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -165,10 +209,8 @@ def build_features(
             k: (None if pd.isnull(v) else (v.item() if hasattr(v, "item") else v))
             for k, v in row["x_post"].items()
         }
-        upsert(
-            FEATURE_TABLE,
-            row,
-            key="campaign_id",  # one row per (campaign, version, mode) — prod
-        )
+        # V.4 composite key — was previously campaign_id, which caused
+        # scoring rows to silently overwrite training rows.
+        upsert(FEATURE_TABLE, row, key="id")
         rows.append(row)
     return pd.DataFrame(rows)

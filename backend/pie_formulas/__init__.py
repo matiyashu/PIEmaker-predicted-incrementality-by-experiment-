@@ -19,11 +19,14 @@ from pie_formulas.prediction import (
     predicted_ic,
 )
 from pie_formulas.evaluation import (
+    att_variance,
     bootstrap_metric,
+    icpd_label_variance,
     lcc_bias_ratio,
     lcc_ols_slope,
     lcc_spearman_rho,
     r_squared_ceiling,
+    r_squared_ceiling_from_label_noise,
     weighted_r_squared,
 )
 from pie_formulas.decision import (
@@ -37,11 +40,13 @@ from pie_formulas.research import att_decomposition
 __all__ = [
     "att",
     "att_decomposition",
+    "att_variance",
     "bootstrap_metric",
     "disagreement_probability",
     "expected_disagreement_cost",
     "exposure_rate",
     "icpd",
+    "icpd_label_variance",
     "incremental_conversions",
     "incremental_revenue",
     "iroas",
@@ -51,6 +56,7 @@ __all__ = [
     "predicted_cpic",
     "predicted_ic",
     "r_squared_ceiling",
+    "r_squared_ceiling_from_label_noise",
     "segment_median_threshold",
     "threshold_scan_range",
     "weighted_r_squared",

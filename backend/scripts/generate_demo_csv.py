@@ -32,6 +32,9 @@ BIDS = ["lowest_cost", "cost_cap", "bid_cap"]
 MARKETS = ["US", "UK", "ID", "DE"]
 SPEND = ["low", "medium", "high"]
 PLATFORMS = ["meta", "tiktok", "google"]
+# V.4: paper-aligned advertiser-size buckets and campaign_year range.
+ADVERTISER_SIZES = ["smb", "mid_market", "enterprise"]
+CAMPAIGN_YEARS = [2024, 2025, 2026]
 
 
 def _row(i: int, *, rng: random.Random, is_rct: bool) -> dict:
@@ -47,8 +50,11 @@ def _row(i: int, *, rng: random.Random, is_rct: bool) -> dict:
     control_conv = int(control_users * control_y) if is_rct else 0
     cost = rng.uniform(15_000, 250_000)
     duration = rng.choice([14, 21, 28, 35])
-    start_month = rng.randint(1, 5)
-    start_date = f"2026-{start_month:02d}-15"
+    # V.4: campaigns now span 3 calendar years so the hold-out-one-level
+    # test on campaign_year (paper Table 1: 21pp drift penalty) can fire.
+    year = rng.choice(CAMPAIGN_YEARS)
+    start_month = rng.randint(1, 12) if year < 2026 else rng.randint(1, 5)
+    start_date = f"{year}-{start_month:02d}-15"
     end_date = pd.Timestamp(start_date) + pd.Timedelta(days=duration)
     end_str = end_date.strftime("%Y-%m-%d")
     cid_prefix = "RCT" if is_rct else "CMP"
@@ -64,6 +70,9 @@ def _row(i: int, *, rng: random.Random, is_rct: bool) -> dict:
         "conversion_optimization": rng.choice(["yes", "no"]),
         "custom_audience": rng.choice(["yes", "no"]),
         "advertiser_platform_experience_months": rng.randint(3, 60),
+        # V.4 NEW fields
+        "advertiser_size": rng.choice(ADVERTISER_SIZES),
+        "campaign_year": year,
         "creative_format": rng.choice(CREATIVES),
         "placement": rng.choice(PLACEMENTS),
         "bid_strategy": rng.choice(BIDS),

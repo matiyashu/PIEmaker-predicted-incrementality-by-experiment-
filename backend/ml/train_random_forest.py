@@ -1,10 +1,15 @@
 """
-Random Forest training (PDF Eq. 20, p. 16; Prompt 2.3).
+Random Forest training (PDF Eq. 20, p. 16; Prompt 2.3 + V.4 Wave 1).
 
-Default model is sklearn RandomForestRegressor. Hyperparameter search runs a
-small grid in Phase 2.3 (Optuna 10-fold CV is the validation-memo target; we
-ship the grid first and upgrade later when the donor pool is large enough for
-CV to make sense).
+V.4: paper-mode evaluation requires headline R² computed from **out-of-fold**
+predictions, not a full-data refit. `train()` now assembles per-fold
+predictions across the CV loop into `TrainingArtifacts.oof_predictions` so
+the downstream orchestrator can compute weighted R² on those instead of
+in-sample. Default `n_splits=10` matches paper §5.1.
+
+The trade-off: with multiple hyperparameter specs in the grid, we keep the
+OOF predictions from whichever spec scored best on CV — no extra training
+passes.
 """
 
 from __future__ import annotations
@@ -39,6 +44,12 @@ class TrainingArtifacts:
     cv_scores: list[float]
     chosen_hyperparameters: dict
     n_observations: int
+    # V.4 Wave 1: OOF predictions assembled during CV. The orchestrator
+    # uses these (not a full-data refit) to compute the paper-aligned
+    # headline R². `oof_campaign_ids` lets callers re-align with labels.
+    oof_predictions: list[float] | None = None
+    oof_campaign_ids: list[str] | None = None
+    oof_n_splits: int | None = None
 
 
 def _flatten_feature_rows(feature_rows: list[dict]) -> pd.DataFrame:
@@ -101,9 +112,20 @@ def train(
     label_rows: list[dict],
     weights: list[float] | None = None,
     grid: list[dict] | None = None,
-    n_splits: int = 5,
+    n_splits: int = 10,
+    return_oof: bool = True,
 ) -> TrainingArtifacts:
-    """Cross-validated grid search; refit on full data with the best params."""
+    """Cross-validated grid search; refit on full data with the best params.
+
+    V.4: when ``return_oof`` is True (the default), per-fold predictions for
+    the best-scoring hyperparameter set are assembled into
+    ``TrainingArtifacts.oof_predictions``. The orchestrator should use those
+    for the paper-aligned headline R² and bootstrap CI — never the full-data
+    refit (which is in-sample by construction).
+
+    The default ``n_splits=10`` matches paper §5.1. For small pools the
+    effective split count is bounded by ``len(common) - 1``.
+    """
     if not feature_rows or not label_rows:
         raise ValueError("feature_rows and label_rows must be non-empty")
 
@@ -124,24 +146,29 @@ def train(
     )
 
     grid = grid or DEFAULT_GRID
-    n_splits = min(n_splits, max(2, len(common) - 1))
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    effective_splits = min(n_splits, max(2, len(common) - 1))
+    kf = KFold(n_splits=effective_splits, shuffle=True, random_state=42)
 
     best_params = grid[0]
     best_mean = -np.inf
     best_scores: list[float] = []
+    # V.4: collect OOF predictions for each candidate; keep the winner's.
+    best_oof = np.full(len(common), np.nan, dtype=float)
     for params in grid:
         scores: list[float] = []
+        oof_preds = np.full(len(common), np.nan, dtype=float)
         for tr_idx, te_idx in kf.split(X):
             pipe, _ = _build_pipeline(X.iloc[tr_idx], params)
             pipe.fit(X.iloc[tr_idx], y.iloc[tr_idx])
-            score = pipe.score(X.iloc[te_idx], y.iloc[te_idx])
-            scores.append(score)
+            preds = pipe.predict(X.iloc[te_idx])
+            oof_preds[te_idx] = preds
+            scores.append(pipe.score(X.iloc[te_idx], y.iloc[te_idx]))
         mean = float(np.mean(scores))
         if mean > best_mean:
             best_mean = mean
             best_params = params
             best_scores = scores
+            best_oof = oof_preds
 
     final_pipe, columns = _build_pipeline(X, best_params)
     final_pipe.fit(X, y, **({"rf__sample_weight": w} if hasattr(final_pipe, "rf") else {}))
@@ -151,6 +178,9 @@ def train(
         cv_scores=best_scores,
         chosen_hyperparameters=best_params,
         n_observations=len(common),
+        oof_predictions=best_oof.tolist() if return_oof else None,
+        oof_campaign_ids=[str(cid) for cid in common] if return_oof else None,
+        oof_n_splits=effective_splits if return_oof else None,
     )
 
 

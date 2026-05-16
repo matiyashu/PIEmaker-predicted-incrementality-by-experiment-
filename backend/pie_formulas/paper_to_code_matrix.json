@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "v4.0.0",
+  "description": "PIEmaker V.4 paper-to-code alignment matrix. Each entry maps a Gordon-Moakler-Zettelmeyer (NBER w35044, April 2026) artifact (equation, figure, table, or methodological claim) to the code location that implements it, with a research-alignment status.",
+  "statuses": {
+    "implemented": "Exact paper definition implemented and exercised in tests.",
+    "approximated": "Implementation in place but diverges from paper in a documented way (proxy weights, residual ceiling, smaller bootstrap, etc.). V.4 closes these.",
+    "missing":     "Paper artifact not yet implemented."
+  },
+  "entries": [
+    {
+      "id": "Eq.10",
+      "kind": "equation",
+      "paper_section": "§3.1",
+      "title": "Exposure rate (D_bar)",
+      "definition": "D_bar_test = exposed_test_users / test_users",
+      "code_location": "backend/pie_formulas/labels.py:exposure_rate",
+      "status": "implemented"
+    },
+    {
+      "id": "Eq.14",
+      "kind": "equation",
+      "paper_section": "§3.1",
+      "title": "ATT label",
+      "definition": "ATT_hat = (test_conversions/test_users - control_conversions/control_users) / D_bar_test",
+      "code_location": "backend/pie_formulas/labels.py:att",
+      "status": "implemented"
+    },
+    {
+      "id": "Eq.22",
+      "kind": "equation",
+      "paper_section": "§3.2",
+      "title": "Incremental conversions",
+      "definition": "IC = ATT_hat * D_bar_test * test_users",
+      "code_location": "backend/pie_formulas/labels.py:incremental_conversions",
+      "status": "implemented"
+    },
+    {
+      "id": "Eq.23",
+      "kind": "equation",
+      "paper_section": "§3.2",
+      "title": "Incremental conversions per dollar (ICPD)",
+      "definition": "ICPD = IC / cost; do NOT model CPIC directly",
+      "code_location": "backend/pie_formulas/labels.py:icpd",
+      "status": "implemented",
+      "model_card_criteria": [
+        "training target == ICPD",
+        "no CPIC model registered"
+      ]
+    },
+    {
+      "id": "Fig.2",
+      "kind": "figure",
+      "paper_section": "§5.1",
+      "title": "Feature ablation R² across specs Pre / +Yt / +LCC-7D / Full / Raw-LCC",
+      "code_location": "backend/ml/feature_ablation.py:run_ablation",
+      "status": "approximated",
+      "gap": "Uses 25% train/test split + no error bars. V.4 rebuilds on OOF with 1000-bootstrap CI per spec.",
+      "v4_target": "Wave 2 (Phase 3)"
+    },
+    {
+      "id": "Fig.6",
+      "kind": "figure",
+      "paper_section": "§5.2",
+      "title": "R² vs donor-pool-size curve",
+      "code_location": null,
+      "status": "missing",
+      "v4_target": "Wave 2 (Phase 3) — backend/ml/sample_size_curve.py"
+    },
+    {
+      "id": "Eq.R2_oof",
+      "kind": "equation",
+      "paper_section": "§5.2",
+      "title": "Weighted out-of-fold R-squared",
+      "definition": "R2_oof = 1 - sum(w*(ICPD - ICPD_pred_oof)^2) / sum(w*(ICPD - mean_w(ICPD))^2)",
+      "code_location": "backend/pie_formulas/evaluation.py:weighted_r_squared",
+      "status": "implemented",
+      "model_card_criteria": [
+        "headline R² computed from OOF predictions, not full-data refit",
+        "weights == true campaign cost"
+      ]
+    },
+    {
+      "id": "R2_ceiling",
+      "kind": "claim",
+      "paper_section": "§3.1 fn. 21, §5.2",
+      "title": "R² ceiling from label noise (RCT estimation error in ATT)",
+      "code_location": "backend/pie_formulas/evaluation.py:r_squared_ceiling_from_label_noise",
+      "status": "implemented",
+      "model_card_criteria": [
+        "ceiling derived from per-RCT ATT standard errors, not model residual variance"
+      ]
+    },
+    {
+      "id": "Bootstrap",
+      "kind": "method",
+      "paper_section": "§5.2",
+      "title": "1000-draw bootstrap CI on R²_oof",
+      "code_location": "backend/pie_formulas/evaluation.py:bootstrap_metric",
+      "status": "implemented",
+      "model_card_criteria": [
+        "n_bootstrap >= 1000",
+        "bootstrap operates on OOF predictions"
+      ]
+    },
+    {
+      "id": "CV",
+      "kind": "method",
+      "paper_section": "§5.1",
+      "title": "10-fold cross-validation in paper mode",
+      "code_location": "backend/ml/train_random_forest.py:train",
+      "status": "implemented",
+      "model_card_criteria": [
+        "n_splits == 10 in paper mode (smaller pools may reduce; reported in model card)"
+      ]
+    },
+    {
+      "id": "Tbl.1",
+      "kind": "table",
+      "paper_section": "§5.3",
+      "title": "Hold-out-one-level extrapolation penalty per segmentation variable",
+      "code_location": "backend/ml/holdout_one_level.py:run_extrapolation_test",
+      "status": "approximated",
+      "gap": "Returns medians only. V.4 stores full within / extrapolation R² distributions.",
+      "v4_target": "Wave 2 (Phase 4)"
+    },
+    {
+      "id": "Eq.D(t)",
+      "kind": "equation",
+      "paper_section": "§6.3",
+      "title": "Decision disagreement at threshold t",
+      "definition": "D(t) = mean(1{ICPD <= t and pred > t} + 1{ICPD > t and pred <= t})",
+      "code_location": "backend/pie_formulas/decision.py:disagreement_probability",
+      "status": "implemented"
+    },
+    {
+      "id": "Fig.D_curves",
+      "kind": "figure",
+      "paper_section": "§6.3",
+      "title": "Disagreement curves over 0.5x - 1.5x of segment median ICPD; PIE vs Raw LCC-7D",
+      "code_location": null,
+      "status": "missing",
+      "v4_target": "Wave 3 (Phase 5) — backend/pie_formulas/decision_curves.py"
+    },
+    {
+      "id": "LCC.cal",
+      "kind": "diagnostic",
+      "paper_section": "§5.4",
+      "title": "LCC calibration by segment: bias ratio, OLS slope, Spearman rho, raw LCC R²",
+      "code_location": "backend/pie_formulas/evaluation.py:lcc_bias_ratio,lcc_ols_slope,lcc_spearman_rho",
+      "status": "approximated",
+      "gap": "Portfolio-wide only. V.4 extends with segment_var parameter.",
+      "v4_target": "Wave 2 (Phase 3) — backend/ml/lcc_calibration_by_segment.py"
+    },
+    {
+      "id": "Adv.CV",
+      "kind": "method",
+      "paper_section": "§5.3",
+      "title": "Existing-advertiser vs new-advertiser CV; bootstrap over advertisers",
+      "code_location": null,
+      "status": "missing",
+      "v4_target": "Wave 2 (Phase 4) — backend/ml/advertiser_cv.py + bootstrap_advertisers.py"
+    },
+    {
+      "id": "Feat.set",
+      "kind": "data",
+      "paper_section": "§4",
+      "title": "Pre/post feature partition with advertiser_id, advertiser_size, campaign_year",
+      "code_location": "backend/services/feature_engineering_service.py:X_PRE_FIELDS",
+      "status": "implemented",
+      "model_card_criteria": [
+        "campaign_year, advertiser_size, advertiser_id present in X_pre"
+      ]
+    },
+    {
+      "id": "Sample.split",
+      "kind": "method",
+      "paper_section": "§4.4",
+      "title": "Mechanical-correlation defense: deterministic sample-split when user-level data is available",
+      "code_location": "backend/services/label_generation_service.py:generate_labels,backend/services/mechanical_correlation_defense.py",
+      "status": "implemented"
+    }
+  ]
+}

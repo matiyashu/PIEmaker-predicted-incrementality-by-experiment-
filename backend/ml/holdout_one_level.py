@@ -1,5 +1,5 @@
 """
-Hold-out-one-level extrapolation test (PDF §5.3, Table 1; Prompt 2.4).
+Hold-out-one-level extrapolation test (PDF §5.3, Table 1; Prompt 2.4 + V.4 Wave 2).
 
 For each level ℓ in a segmentation variable:
   within_R²        = train on a random half of level-ℓ RCTs, score on the
@@ -8,13 +8,18 @@ For each level ℓ in a segmentation variable:
                      score on the held-out level-ℓ rows (extrapolation)
 Repeat `n_iterations` times and report distributions + median penalty.
 
-Targets: 6 segmentation variables (advertiser_size, campaign_year,
-custom_audience, conversion_optimization, prospecting_vs_retargeting, vertical).
+V.4 Wave 2 (Phase 4a) changes:
+  * Returns the **full within / extrapolation R² distributions** per level
+    (paper Table 1 plots distributions, not just medians). Backwards-
+    compatible: median fields kept; new `within_r2_dist`, `extrapolation_r2_dist`,
+    `penalty_pp_dist` and p10/p90 tail percentiles are added.
+  * SEGMENTATION_VARS now includes the paper-exact `campaign_year` and
+    `advertiser_size`. V.3's `month` proxy is retained for legacy fixtures.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -26,13 +31,18 @@ from ml.train_random_forest import (
     _flatten_feature_rows,
 )
 
+# V.4: paper-exact segmentation variables. `month` (V.3 year-proxy) kept for
+# back-compat with existing tests; production runs prefer `campaign_year`
+# and `advertiser_size`.
 SEGMENTATION_VARS: tuple[str, ...] = (
     "vertical",
     "audience_type",
     "conversion_optimization",
     "custom_audience",
     "advertiser_platform_experience_months",
-    "month",  # year-proxy on small synthetic donor pools; swap to year IRL
+    "advertiser_size",
+    "campaign_year",
+    "month",
 )
 
 # Categorical risk bands — calibrated to PDF Table 1 baselines.
@@ -53,6 +63,17 @@ class ExtrapolationLevelResult:
     penalty_pp: float
     n_iterations: int
     risk: str
+    # V.4 Wave 2: full distributions for paper-faithful box/violin plots.
+    within_r2_dist: list[float] = field(default_factory=list)
+    extrapolation_r2_dist: list[float] = field(default_factory=list)
+    penalty_pp_dist: list[float] = field(default_factory=list)
+    # Tail percentiles for callers that just want a band, not the full draws.
+    within_r2_p10: float = float("nan")
+    within_r2_p90: float = float("nan")
+    extrapolation_r2_p10: float = float("nan")
+    extrapolation_r2_p90: float = float("nan")
+    penalty_pp_p10: float = float("nan")
+    penalty_pp_p90: float = float("nan")
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -139,13 +160,25 @@ def run_extrapolation_test(
                 )
             )
 
-        within_med = float(np.nanmedian(within_scores)) if within_scores else float("nan")
-        extrap_med = float(np.nanmedian(extrap_scores)) if extrap_scores else float("nan")
+        within_arr = np.asarray(within_scores, dtype=float)
+        extrap_arr = np.asarray(extrap_scores, dtype=float)
+        within_arr = within_arr[~np.isnan(within_arr)]
+        extrap_arr = extrap_arr[~np.isnan(extrap_arr)]
+        within_med = float(np.median(within_arr)) if within_arr.size else float("nan")
+        extrap_med = float(np.median(extrap_arr)) if extrap_arr.size else float("nan")
         penalty_pp = (
             (within_med - extrap_med) * 100.0
             if not (np.isnan(within_med) or np.isnan(extrap_med))
             else float("nan")
         )
+
+        # V.4: paired per-iteration penalty distribution (within - extrap) × 100.
+        if within_arr.size and extrap_arr.size:
+            paired = min(within_arr.size, extrap_arr.size)
+            penalty_dist = ((within_arr[:paired] - extrap_arr[:paired]) * 100.0).tolist()
+        else:
+            penalty_dist = []
+
         results.append(
             ExtrapolationLevelResult(
                 segmentation_var=segmentation_var,
@@ -153,8 +186,29 @@ def run_extrapolation_test(
                 within_r2_median=within_med,
                 extrapolation_r2_median=extrap_med,
                 penalty_pp=penalty_pp,
-                n_iterations=len(within_scores),
+                n_iterations=int(min(within_arr.size, extrap_arr.size)),
                 risk=_classify(penalty_pp) if not np.isnan(penalty_pp) else "unknown",
+                within_r2_dist=within_arr.tolist(),
+                extrapolation_r2_dist=extrap_arr.tolist(),
+                penalty_pp_dist=penalty_dist,
+                within_r2_p10=(
+                    float(np.percentile(within_arr, 10)) if within_arr.size else float("nan")
+                ),
+                within_r2_p90=(
+                    float(np.percentile(within_arr, 90)) if within_arr.size else float("nan")
+                ),
+                extrapolation_r2_p10=(
+                    float(np.percentile(extrap_arr, 10)) if extrap_arr.size else float("nan")
+                ),
+                extrapolation_r2_p90=(
+                    float(np.percentile(extrap_arr, 90)) if extrap_arr.size else float("nan")
+                ),
+                penalty_pp_p10=(
+                    float(np.percentile(penalty_dist, 10)) if penalty_dist else float("nan")
+                ),
+                penalty_pp_p90=(
+                    float(np.percentile(penalty_dist, 90)) if penalty_dist else float("nan")
+                ),
             )
         )
     return [r.to_dict() for r in results]

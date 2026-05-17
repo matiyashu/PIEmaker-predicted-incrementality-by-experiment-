@@ -277,9 +277,17 @@ def train_pie_model(
         except ValueError:
             pass
 
-    # Ablation still uses the V.3 implementation (25% hold-out) — Wave 2
-    # Phase 3 rebuilds it on OOF with bootstrap error bars.
-    ablation = run_ablation(feats_aligned, list(label_by_id.values()), cost_weights)
+    # V.4 Wave 2: ablation now runs OOF + bootstrap CI per spec, threaded
+    # with the orchestrator's n_splits + n_bootstrap so demo seed (small
+    # grid, n_bootstrap=20, n_splits=3) stays fast while production
+    # (paper defaults n_splits=10, n_bootstrap=1000) takes its cost.
+    ablation = run_ablation(
+        feats_aligned,
+        list(label_by_id.values()),
+        cost_weights,
+        n_splits=n_splits,
+        n_bootstrap=n_bootstrap,
+    )
 
     # Concept-drift baseline: feature importances per fitted RF.
     rf = artifacts.estimator.named_steps["rf"]

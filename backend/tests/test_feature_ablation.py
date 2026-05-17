@@ -61,10 +61,15 @@ def _rows(n: int = 30) -> tuple[list[dict], list[dict], list[float]]:
 
 def test_ablation_returns_all_five_specs():
     feats, labels, weights = _rows(30)
-    rows = run_ablation(feats, labels, cost_weights=weights)
+    # V.4 ablation runs OOF + bootstrap CI; use cheap params for unit speed.
+    rows = run_ablation(feats, labels, cost_weights=weights, n_splits=3, n_bootstrap=20)
     assert [r["spec"] for r in rows] == ABLATION_SPECS
     for r in rows:
-        assert r["n_train"] + r["n_test"] == 30
+        # V.4 shape: n_observations + n_splits + n_bootstrap + CI band.
+        assert r["n_observations"] == 30
+        assert r["n_bootstrap"] == 20
+        assert r["n_splits"] >= 2
+        assert "ci_lower" in r and "ci_upper" in r
 
 
 def test_ablation_rejects_too_few_rows():
@@ -76,13 +81,16 @@ def test_ablation_rejects_too_few_rows():
 def test_ablation_rejects_mismatched_weights_length():
     feats, labels, _ = _rows(20)
     with pytest.raises(ValueError):
-        run_ablation(feats, labels, cost_weights=[1.0, 1.0])
+        run_ablation(feats, labels, cost_weights=[1.0, 1.0], n_splits=3, n_bootstrap=20)
 
 
 def test_ablation_full_spec_at_least_as_strong_as_pre_only():
     """PIE(Full) should not have a worse weighted R² than PIE(Pre) on a clean
     synthetic donor pool where the post features carry the signal."""
     feats, labels, weights = _rows(60)
-    rows = {r["spec"]: r["weighted_r2"] for r in run_ablation(feats, labels, weights)}
-    # Allow small slack for RF stochasticity
-    assert rows["PIE(Full)"] >= rows["PIE(Pre)"] - 0.15
+    rows = {
+        r["spec"]: r["weighted_r2"]
+        for r in run_ablation(feats, labels, weights, n_splits=4, n_bootstrap=20)
+    }
+    # Allow generous slack for RF stochasticity + OOF noise.
+    assert rows["PIE(Full)"] >= rows["PIE(Pre)"] - 0.20

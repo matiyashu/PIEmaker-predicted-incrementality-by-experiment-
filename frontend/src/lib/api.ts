@@ -96,6 +96,24 @@ function _mockDispatch<T>(url: string, init?: RequestInit): T {
   if (path === "/api/clean")
     return m(mock.mockClean(String(body.upload_id ?? "mockupload01")));
 
+  // V.4 Wave 2 — diagnostics endpoints
+  if (path === "/api/models/calibration")
+    return m(mock.mockCalibration(String(body.segmentation_var ?? "vertical")));
+  if (path === "/api/models/sample-size-curve")
+    return m(mock.mockSampleSizeCurve());
+  if (path === "/api/models/advertiser-cv")
+    return m(mock.mockAdvertiserCv());
+  if (path === "/api/models/bootstrap-advertisers")
+    return m(mock.mockBootstrapAdvertisers());
+  if (path === "/api/models/holdout-distributions")
+    return m(mock.mockHoldoutDistributions());
+
+  // V.4 Wave 3 — decision curves
+  if (path === "/api/decisions/curves")
+    return m(mock.mockDecisionCurves());
+  if (path === "/api/decisions/curves/compare")
+    return m(mock.mockDecisionCurvesCompare());
+
   throw new Error(
     `Demo mode: no mock handler for ${method} ${path}. Either disable demo mode or add a mock in lib/mock.ts.`,
   );
@@ -862,5 +880,160 @@ export const runSimulator = (options: {
       risk_floor: options.riskFloor ?? "low",
       only_non_rct: options.onlyNonRct ?? true,
       feature_set_version: options.featureSetVersion ?? "v1",
+    }),
+  });
+
+// ----------------------------------------------------------------------------
+// V.4 Wave 2 — paper-faithful diagnostics
+// ----------------------------------------------------------------------------
+
+export interface CalibrationRow {
+  segmentation_var: string;
+  level: string;
+  n: number;
+  bias_ratio: number | null;
+  ols_slope: number | null;
+  spearman_rho: number | null;
+  raw_lcc_r2: number | null;
+  residual_mean: number;
+  residual_p10: number;
+  residual_p90: number;
+}
+
+export interface CalibrationResponse {
+  segmentation_var: string;
+  n_levels: number;
+  results: CalibrationRow[];
+}
+
+export const fetchCalibration = (segmentationVar: string): Promise<CalibrationResponse> =>
+  jsonFetch(`${BASE}/api/models/calibration`, {
+    method: "POST",
+    body: JSON.stringify({
+      segmentation_var: segmentationVar,
+      feature_set_version: "v1",
+      min_n_per_level: 5,
+    }),
+  });
+
+export interface PoolSizePoint {
+  pool_size: number;
+  weighted_r2_median: number;
+  weighted_r2_p025: number;
+  weighted_r2_p975: number;
+  n_subsamples: number;
+  n_splits: number;
+}
+
+export interface SampleSizeCurveResponse {
+  n_points: number;
+  points: PoolSizePoint[];
+}
+
+export const fetchSampleSizeCurve = (): Promise<SampleSizeCurveResponse> =>
+  jsonFetch(`${BASE}/api/models/sample-size-curve`, {
+    method: "POST",
+    body: JSON.stringify({ feature_set_version: "v1", n_subsamples: 5, n_splits: 5 }),
+  });
+
+export interface AdvertiserCohort {
+  cohort: "existing" | "new";
+  n: number;
+  weighted_r2: number;
+  n_advertisers: number;
+}
+
+export interface AdvertiserCvResponse {
+  n_total: number;
+  n_splits: number;
+  cohorts: AdvertiserCohort[];
+  cohort_gap_pp: number;
+}
+
+export const fetchAdvertiserCv = (): Promise<AdvertiserCvResponse> =>
+  jsonFetch(`${BASE}/api/models/advertiser-cv`, {
+    method: "POST",
+    body: JSON.stringify({ feature_set_version: "v1", n_splits: 5 }),
+  });
+
+export interface AdvertiserBootstrapResponse {
+  n_draws: number;
+  n_advertisers: number;
+  mean: number;
+  p025: number;
+  p975: number;
+  distribution: number[];
+}
+
+export const fetchAdvertiserBootstrap = (): Promise<AdvertiserBootstrapResponse> =>
+  jsonFetch(`${BASE}/api/models/bootstrap-advertisers`, {
+    method: "POST",
+    body: JSON.stringify({ feature_set_version: "v1", n_draws: 100 }),
+  });
+
+export interface HoldoutDistributionRow {
+  id: string;
+  segmentation_var: string;
+  level: string;
+  within_r2_median: number;
+  extrapolation_r2_median: number;
+  penalty_pp: number;
+  n_iterations: number;
+  risk: string;
+  within_r2_dist: number[];
+  extrapolation_r2_dist: number[];
+  penalty_pp_dist: number[];
+  within_r2_p10: number;
+  within_r2_p90: number;
+  extrapolation_r2_p10: number;
+  extrapolation_r2_p90: number;
+  penalty_pp_p10: number;
+  penalty_pp_p90: number;
+}
+
+export interface HoldoutDistributionsResponse {
+  distributions: HoldoutDistributionRow[];
+  count: number;
+}
+
+export const fetchHoldoutDistributions = (): Promise<HoldoutDistributionsResponse> =>
+  jsonFetch(`${BASE}/api/models/holdout-distributions`, { method: "GET" });
+
+// ----------------------------------------------------------------------------
+// V.4 Wave 3 — decision-disagreement curves
+// ----------------------------------------------------------------------------
+
+export interface DisagreementCurvePoint {
+  threshold_ratio: number;
+  threshold: number;
+  disagreement: number;
+  type_1: number;
+  type_2: number;
+  expected_cost?: number;
+  is_piemaker_extension?: boolean;
+}
+
+export interface DecisionCurvesCompareResponse {
+  reference_median: number;
+  low_ratio: number;
+  high_ratio: number;
+  step: number;
+  pie: DisagreementCurvePoint[];
+  raw_lcc: DisagreementCurvePoint[];
+}
+
+export const fetchDecisionCurvesCompare = (
+  icpdTrue: number[],
+  piePred: number[],
+  rawLccPred: number[],
+  referenceMedian?: number,
+): Promise<DecisionCurvesCompareResponse> =>
+  jsonFetch(`${BASE}/api/decisions/curves/compare`, {
+    method: "POST",
+    body: JSON.stringify({
+      icpd_true: icpdTrue,
+      pie_pred: piePred,
+      raw_lcc_pred: rawLccPred,
+      reference_median: referenceMedian ?? null,
     }),
   });

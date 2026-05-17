@@ -1,10 +1,24 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { isDemoMode } from "@/lib/demo-mode";
 import { useUploadId } from "@/lib/use-upload-id";
 import { SummaryCard } from "@/components/summary-card";
+import {
+  type DecisionCurvesCompareResponse,
+  fetchDecisionCurvesCompare,
+} from "@/lib/api";
 
 import {
   type ActionBand,
@@ -304,7 +318,108 @@ function DecisionsInner() {
           </section>
         </>
       )}
+
+      <DisagreementCurvesSection />
     </main>
+  );
+}
+
+// V.4 Wave 3 (Phase 5): PIE vs Raw-LCC-7D disagreement curves.
+// Shown as a standalone section so viewers always see the paper-faithful
+// chart, independent of whether they've run a portfolio in this session.
+function DisagreementCurvesSection() {
+  const [data, setData] = useState<DecisionCurvesCompareResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // In demo mode the dispatcher ignores the body. In live mode the
+    // backend needs paper-faithful inputs (OOF predictions + LCC-7d/$);
+    // wiring those from the model registry is Wave 4. For now, send a
+    // shape-correct stub so demo mode renders and live mode 400s
+    // gracefully into the error banner.
+    fetchDecisionCurvesCompare([0.05, 0.10, 0.15, 0.20], [0.06, 0.11, 0.14, 0.18], [0.08, 0.14, 0.21, 0.27])
+      .then(setData)
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : String(err)),
+      );
+  }, []);
+
+  return (
+    <section className="mt-10 rounded-lg border bg-card p-5 shadow-sm">
+      <p className="font-medium">
+        Decision-disagreement curves (paper §6.3)
+      </p>
+      <p className="mb-3 text-xs text-muted-foreground">
+        D(t) over 0.5×–1.5× of segment median ICPD. PIE&rsquo;s curve sits
+        below Raw-LCC-7d&rsquo;s when the model adds value at the decision
+        boundary — paper baselines: PIE 8–12% vs LCC 12–20%.
+      </p>
+      {error && (
+        <div className="mb-3 rounded-md border border-amber-300 bg-amber-50/60 p-2 text-xs text-amber-800">
+          {error} — connect a trained model + OOF predictions to render with
+          real data (Wave 4).
+        </div>
+      )}
+      {data ? (
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart
+            data={data.pie.map((pie, i) => ({
+              ratio: pie.threshold_ratio,
+              pie: pie.disagreement,
+              lcc: data.raw_lcc[i]?.disagreement,
+            }))}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis
+              dataKey="ratio"
+              tick={{ fontSize: 11 }}
+              label={{
+                value: "threshold ratio (× segment median)",
+                position: "insideBottom",
+                offset: -5,
+                style: { fontSize: 10 },
+              }}
+            />
+            <YAxis
+              tick={{ fontSize: 11 }}
+              domain={[0, "auto"]}
+              label={{
+                value: "D(t)",
+                angle: -90,
+                position: "insideLeft",
+                style: { fontSize: 10 },
+              }}
+            />
+            <Tooltip formatter={(v: number) => v.toFixed(3)} />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="pie"
+              stroke="#2563eb"
+              strokeWidth={2}
+              name="PIE"
+              dot={{ r: 2 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="lcc"
+              stroke="#f97316"
+              strokeWidth={2}
+              name="Raw LCC-7d"
+              dot={{ r: 2 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="grid h-[200px] place-items-center text-sm text-muted-foreground">
+          Loading curves…
+        </div>
+      )}
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        Reference median:{" "}
+        {data ? data.reference_median.toFixed(4) : "—"} · paper Fig 6 right.
+      </p>
+    </section>
   );
 }
 

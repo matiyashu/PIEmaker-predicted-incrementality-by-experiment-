@@ -848,3 +848,298 @@ export function mockClean(uploadId: string): CleanResponse {
     })),
   };
 }
+
+// ============================================================================
+// V.4 Wave 2 — diagnostics mocks
+// ============================================================================
+
+export function mockCalibration(segmentationVar: string): {
+  segmentation_var: string;
+  n_levels: number;
+  results: Array<{
+    segmentation_var: string;
+    level: string;
+    n: number;
+    bias_ratio: number | null;
+    ols_slope: number | null;
+    spearman_rho: number | null;
+    raw_lcc_r2: number | null;
+    residual_mean: number;
+    residual_p10: number;
+    residual_p90: number;
+  }>;
+} {
+  const levelsByVar: Record<string, string[]> = {
+    vertical: ["ecommerce", "travel", "finance", "media"],
+    audience_type: ["retargeting", "prospecting", "lookalike"],
+    funnel_stage: ["upper", "mid", "lower"],
+    advertiser_size: ["smb", "mid_market", "enterprise"],
+    campaign_year: ["2024", "2025", "2026"],
+  };
+  const levels = levelsByVar[segmentationVar] ?? ["a", "b", "c"];
+  // Paper-shape: LCC overstates lift, so bias_ratio > 1 in most segments.
+  const results = levels.map((level, i) => {
+    const baseBias = 1.15 + (i % 3) * 0.18;
+    const n = 12 + (i * 7) % 23;
+    return {
+      segmentation_var: segmentationVar,
+      level,
+      n,
+      bias_ratio: Number(baseBias.toFixed(3)),
+      ols_slope: Number((0.65 + 0.05 * i).toFixed(3)),
+      spearman_rho: Number((0.42 + 0.04 * i).toFixed(3)),
+      raw_lcc_r2: Number((0.22 + 0.03 * i).toFixed(3)),
+      residual_mean: Number((-0.018 - 0.004 * i).toFixed(4)),
+      residual_p10: Number((-0.082 - 0.005 * i).toFixed(4)),
+      residual_p90: Number((0.041 + 0.004 * i).toFixed(4)),
+    };
+  });
+  return {
+    segmentation_var: segmentationVar,
+    n_levels: results.length,
+    results,
+  };
+}
+
+export function mockSampleSizeCurve(): {
+  n_points: number;
+  points: Array<{
+    pool_size: number;
+    weighted_r2_median: number;
+    weighted_r2_p025: number;
+    weighted_r2_p975: number;
+    n_subsamples: number;
+    n_splits: number;
+  }>;
+} {
+  // Paper Figure 6 shape: rises from ~0.37 at n=50, plateaus near 0.88 at n=1600.
+  const targets = [
+    { pool_size: 50, r2: 0.37, ci: 0.10 },
+    { pool_size: 100, r2: 0.55, ci: 0.08 },
+    { pool_size: 200, r2: 0.66, ci: 0.06 },
+    { pool_size: 400, r2: 0.74, ci: 0.05 },
+    { pool_size: 800, r2: 0.81, ci: 0.04 },
+    { pool_size: 1600, r2: 0.86, ci: 0.03 },
+  ];
+  const points = targets.map((t) => ({
+    pool_size: t.pool_size,
+    weighted_r2_median: t.r2,
+    weighted_r2_p025: Number((t.r2 - t.ci).toFixed(3)),
+    weighted_r2_p975: Number((t.r2 + t.ci).toFixed(3)),
+    n_subsamples: 5,
+    n_splits: 5,
+  }));
+  return { n_points: points.length, points };
+}
+
+export function mockAdvertiserCv(): {
+  n_total: number;
+  n_splits: number;
+  cohorts: Array<{
+    cohort: "existing" | "new";
+    n: number;
+    weighted_r2: number;
+    n_advertisers: number;
+  }>;
+  cohort_gap_pp: number;
+} {
+  // Paper §5.3 cold-start finding: new advertisers lose ~12pp of R²
+  // because the model has never seen their idiosyncratic baseline.
+  return {
+    n_total: 450,
+    n_splits: 5,
+    cohorts: [
+      { cohort: "existing", n: 380, weighted_r2: 0.79, n_advertisers: 76 },
+      { cohort: "new", n: 70, weighted_r2: 0.67, n_advertisers: 70 },
+    ],
+    cohort_gap_pp: 12.0,
+  };
+}
+
+function _mockBootstrapDistribution(
+  mean: number,
+  std: number,
+  n: number,
+  seed = 71,
+): number[] {
+  // Deterministic-ish "bootstrap": fixed permutation around the mean. Not
+  // a real sample, just shape-correct values for chart rendering.
+  const out: number[] = [];
+  let state = seed;
+  for (let i = 0; i < n; i++) {
+    state = (state * 1103515245 + 12345) % 2 ** 31;
+    const u = state / 2 ** 31;
+    // Box-Muller half (approximate enough for visuals).
+    const z = Math.sqrt(-2 * Math.log(u || 1e-9)) * Math.cos(2 * Math.PI * u);
+    out.push(Number((mean + std * z).toFixed(4)));
+  }
+  return out;
+}
+
+export function mockBootstrapAdvertisers(): {
+  n_draws: number;
+  n_advertisers: number;
+  mean: number;
+  p025: number;
+  p975: number;
+  distribution: number[];
+} {
+  const distribution = _mockBootstrapDistribution(0.78, 0.045, 100, 71);
+  const sorted = [...distribution].sort((a, b) => a - b);
+  return {
+    n_draws: distribution.length,
+    n_advertisers: 76,
+    mean: 0.78,
+    p025: Number(sorted[Math.floor(sorted.length * 0.025)].toFixed(3)),
+    p975: Number(sorted[Math.floor(sorted.length * 0.975)].toFixed(3)),
+    distribution,
+  };
+}
+
+export function mockHoldoutDistributions(): {
+  distributions: Array<{
+    id: string;
+    segmentation_var: string;
+    level: string;
+    within_r2_median: number;
+    extrapolation_r2_median: number;
+    penalty_pp: number;
+    n_iterations: number;
+    risk: string;
+    within_r2_dist: number[];
+    extrapolation_r2_dist: number[];
+    penalty_pp_dist: number[];
+    within_r2_p10: number;
+    within_r2_p90: number;
+    extrapolation_r2_p10: number;
+    extrapolation_r2_p90: number;
+    penalty_pp_p10: number;
+    penalty_pp_p90: number;
+  }>;
+  count: number;
+} {
+  // Match the (var, level) shape Wave 2 hold-out test produces, with
+  // realistic dispersion so the box-plots render with whisker variety.
+  const seeds: Array<{
+    seg: string;
+    level: string;
+    within: number;
+    extrap: number;
+    risk: string;
+  }> = [
+    { seg: "vertical", level: "ecommerce", within: 0.80, extrap: 0.74, risk: "medium" },
+    { seg: "vertical", level: "travel", within: 0.77, extrap: 0.62, risk: "medium" },
+    { seg: "vertical", level: "finance", within: 0.74, extrap: 0.51, risk: "high" },
+    { seg: "vertical", level: "media", within: 0.70, extrap: 0.41, risk: "severe" },
+    { seg: "audience_type", level: "retargeting", within: 0.81, extrap: 0.78, risk: "low" },
+    { seg: "audience_type", level: "prospecting", within: 0.74, extrap: 0.62, risk: "medium" },
+    { seg: "audience_type", level: "lookalike", within: 0.71, extrap: 0.58, risk: "medium" },
+    { seg: "advertiser_size", level: "smb", within: 0.71, extrap: 0.58, risk: "medium" },
+    { seg: "advertiser_size", level: "mid_market", within: 0.78, extrap: 0.71, risk: "medium" },
+    { seg: "advertiser_size", level: "enterprise", within: 0.81, extrap: 0.77, risk: "low" },
+    { seg: "campaign_year", level: "2024", within: 0.75, extrap: 0.54, risk: "high" },
+    { seg: "campaign_year", level: "2025", within: 0.78, extrap: 0.71, risk: "medium" },
+    { seg: "campaign_year", level: "2026", within: 0.81, extrap: 0.76, risk: "low" },
+  ];
+  let bs = 91;
+  const distributions = seeds.map((s) => {
+    const withinDist = _mockBootstrapDistribution(s.within, 0.025, 20, bs++);
+    const extrapDist = _mockBootstrapDistribution(s.extrap, 0.04, 20, bs++);
+    const penaltyDist = withinDist.map((w, i) => Number(((w - extrapDist[i]) * 100).toFixed(2)));
+    const sortedPenalty = [...penaltyDist].sort((a, b) => a - b);
+    const sortedW = [...withinDist].sort((a, b) => a - b);
+    const sortedE = [...extrapDist].sort((a, b) => a - b);
+    return {
+      id: `${s.seg}|${s.level}`,
+      segmentation_var: s.seg,
+      level: s.level,
+      within_r2_median: s.within,
+      extrapolation_r2_median: s.extrap,
+      penalty_pp: Number(((s.within - s.extrap) * 100).toFixed(2)),
+      n_iterations: 20,
+      risk: s.risk,
+      within_r2_dist: withinDist,
+      extrapolation_r2_dist: extrapDist,
+      penalty_pp_dist: penaltyDist,
+      within_r2_p10: sortedW[2],
+      within_r2_p90: sortedW[17],
+      extrapolation_r2_p10: sortedE[2],
+      extrapolation_r2_p90: sortedE[17],
+      penalty_pp_p10: sortedPenalty[2],
+      penalty_pp_p90: sortedPenalty[17],
+    };
+  });
+  return { distributions, count: distributions.length };
+}
+
+// ============================================================================
+// V.4 Wave 3 — decision-disagreement curves
+// ============================================================================
+
+function _scanRatios(low = 0.5, high = 1.5, step = 0.05): number[] {
+  const n = Math.round((high - low) / step) + 1;
+  return Array.from({ length: n }, (_, i) => Number((low + i * step).toFixed(2)));
+}
+
+function _curveAt(
+  ratios: number[],
+  // Disagreement minimum near 1.0 ratio (segment median is where the decision
+  // boundary is most ambiguous), rises toward the tails. Paper-shape.
+  base: number,
+  refMedian: number,
+  type1Bias: number,
+  type2Bias: number,
+) {
+  return ratios.map((r) => {
+    const distFromCenter = Math.abs(r - 1.0);
+    const d = Math.max(0.02, base + 0.18 * distFromCenter);
+    const type1 = Math.max(0, d * type1Bias);
+    const type2 = Math.max(0, d - type1);
+    return {
+      threshold_ratio: r,
+      threshold: Number((r * refMedian).toFixed(4)),
+      disagreement: Number(d.toFixed(4)),
+      type_1: Number(type1.toFixed(4)),
+      type_2: Number(type2.toFixed(4)),
+    };
+  });
+}
+
+export function mockDecisionCurves(): {
+  curve: ReturnType<typeof _curveAt>;
+  expected_cost_curve: null;
+  reference_median: number;
+  low_ratio: number;
+  high_ratio: number;
+  step: number;
+} {
+  const ratios = _scanRatios();
+  return {
+    curve: _curveAt(ratios, 0.10, 0.085, 0.5, 0.5),
+    expected_cost_curve: null,
+    reference_median: 0.085,
+    low_ratio: 0.5,
+    high_ratio: 1.5,
+    step: 0.05,
+  };
+}
+
+export function mockDecisionCurvesCompare(): {
+  reference_median: number;
+  low_ratio: number;
+  high_ratio: number;
+  step: number;
+  pie: ReturnType<typeof _curveAt>;
+  raw_lcc: ReturnType<typeof _curveAt>;
+} {
+  const ratios = _scanRatios();
+  // Paper baselines: PIE 8–12% disagreement vs RCT, LCC 12–20%.
+  return {
+    reference_median: 0.085,
+    low_ratio: 0.5,
+    high_ratio: 1.5,
+    step: 0.05,
+    pie: _curveAt(ratios, 0.09, 0.085, 0.45, 0.55),
+    raw_lcc: _curveAt(ratios, 0.17, 0.085, 0.65, 0.35),
+  };
+}

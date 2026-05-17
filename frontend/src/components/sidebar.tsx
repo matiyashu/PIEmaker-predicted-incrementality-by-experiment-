@@ -12,6 +12,7 @@ import {
   GaugeCircle,
   LayoutDashboard,
   ListChecks,
+  Microscope,
   ScanSearch,
   Settings,
   Sparkles,
@@ -70,6 +71,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/drift", label: "Drift", icon: ScanSearch },
       { href: "/simulator", label: "Simulator", icon: Sliders },
+      { href: "/diagnostics", label: "Diagnostics", icon: Microscope },
     ],
   },
   {

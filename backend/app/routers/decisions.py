@@ -1,4 +1,4 @@
-"""POST /api/decisions/recommend — Phase 3.3."""
+"""POST /api/decisions/* — recommend (Phase 3.3) + curves (V.4 Wave 3 / Phase 5)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,11 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from pie_formulas.decision_curves import (
+    disagreement_curves,
+    disagreement_curves_compare,
+    expected_disagreement_cost_curve,
+)
 from services.decision_service import (
     project_portfolio_lift,
     rank_recommendations,
@@ -103,3 +108,105 @@ def recommend(req: RecommendRequest) -> dict:
         "risk_floor": req.risk_floor,
         "portfolio": portfolio_meta,
     }
+
+
+# --- V.4 Wave 3 (Phase 5) — disagreement curves ------------------------------
+
+
+class DisagreementCurvesRequest(BaseModel):
+    """One curve, one model.
+
+    `icpd_true` and `icpd_pred` are the paper-faithful inputs — the
+    diagnostic doesn't know how the predictions were generated. Callers
+    typically pull these from the orchestrator's OOF arrays.
+    """
+
+    icpd_true: list[float]
+    icpd_pred: list[float]
+    reference_median: float | None = None
+    low_ratio: float = 0.5
+    high_ratio: float = 1.5
+    step: float = 0.05
+    # PIEmaker extension: when both per-unit costs are >= 0, an
+    # expected_cost field is added to each curve point. Clearly labelled
+    # as a PIEmaker extension in the response so it can't be confused
+    # with the paper's plain D(t).
+    fp_cost_per_unit: float | None = None
+    fn_cost_per_unit: float | None = None
+
+
+@router.post("/curves")
+def curves(req: DisagreementCurvesRequest) -> dict:
+    if len(req.icpd_true) != len(req.icpd_pred):
+        raise HTTPException(
+            status_code=400,
+            detail="icpd_true and icpd_pred must have the same length",
+        )
+    try:
+        curve = disagreement_curves(
+            icpd_true=req.icpd_true,
+            icpd_pred=req.icpd_pred,
+            reference_median=req.reference_median,
+            low_ratio=req.low_ratio,
+            high_ratio=req.high_ratio,
+            step=req.step,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    edc = None
+    if req.fp_cost_per_unit is not None and req.fn_cost_per_unit is not None:
+        try:
+            edc = expected_disagreement_cost_curve(
+                curve,
+                fp_cost_per_unit=req.fp_cost_per_unit,
+                fn_cost_per_unit=req.fn_cost_per_unit,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    return {
+        "curve": curve,
+        "expected_cost_curve": edc,
+        "reference_median": req.reference_median,
+        "low_ratio": req.low_ratio,
+        "high_ratio": req.high_ratio,
+        "step": req.step,
+    }
+
+
+class DisagreementCompareRequest(BaseModel):
+    """PIE vs Raw-LCC-7D side-by-side over the same threshold sweep."""
+
+    icpd_true: list[float]
+    pie_pred: list[float]
+    raw_lcc_pred: list[float]
+    reference_median: float | None = None
+    low_ratio: float = 0.5
+    high_ratio: float = 1.5
+    step: float = 0.05
+
+
+@router.post("/curves/compare")
+def curves_compare(req: DisagreementCompareRequest) -> dict:
+    n = len(req.icpd_true)
+    if len(req.pie_pred) != n or len(req.raw_lcc_pred) != n:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "icpd_true, pie_pred, and raw_lcc_pred must all have the "
+                "same length"
+            ),
+        )
+    try:
+        return disagreement_curves_compare(
+            icpd_true=req.icpd_true,
+            pie_pred=req.pie_pred,
+            raw_lcc_pred=req.raw_lcc_pred,
+            reference_median=req.reference_median,
+            low_ratio=req.low_ratio,
+            high_ratio=req.high_ratio,
+            step=req.step,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

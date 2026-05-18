@@ -36,6 +36,7 @@ from pie_formulas import (
     weighted_r_squared,
 )
 from pie_formulas.model_card_schema import ModelCardCriteria, evaluate_alignment
+from pie_formulas.run_manifest import build_manifest
 from ml.feature_ablation import run_ablation
 from ml.model_registry import record_metric, register_model
 from ml.train_random_forest import train
@@ -310,6 +311,18 @@ def train_pie_model(
         "paper_alignment_version": "v4.0.0",
     }
 
+    # V.4 Wave 4: capture git SHA + paper_alignment_version + hyperparameters
+    # so a model can be re-derived deterministically months later.
+    manifest = build_manifest(
+        hyperparameters=artifacts.chosen_hyperparameters,
+        model_card_criteria=criteria.to_dict(),
+        extra={
+            "n_observations": int(artifacts.n_observations),
+            "donor_pool_band": pool_status.band,
+            "feature_set_version": feature_set_version,
+        },
+    )
+
     model = register_model(
         name=name,
         algorithm="random_forest",
@@ -320,6 +333,7 @@ def train_pie_model(
         concept_drift_baseline={
             "feature_importances": importances,
             "model_card": model_card_payload,
+            "run_manifest": manifest,
         },
         status="research" if pool_status.band == "research_mode" else "production",
     )
@@ -357,6 +371,7 @@ def train_pie_model(
         "donor_pool_status": pool_status.to_dict(),
         # V.4 NEW
         "model_card": model_card_payload,
+        "run_manifest": manifest,
         "oof": {
             "n_splits": artifacts.oof_n_splits,
             "n_predictions": len(pred_oof),

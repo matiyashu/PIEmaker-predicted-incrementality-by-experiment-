@@ -9,10 +9,11 @@
 </p>
 
 <p align="center">
-  <img alt="status" src="https://img.shields.io/badge/build_plan_v3-complete-10b981?style=flat-square"/>
+  <img alt="status" src="https://img.shields.io/badge/V.4_phases_0--8-complete-10b981?style=flat-square"/>
+  <img alt="paper-faithful" src="https://img.shields.io/badge/paper--faithful-OOF%20%C2%B7%20true%20cost%20%C2%B7%20label--noise%20ceiling-2563eb?style=flat-square"/>
   <img alt="backend" src="https://img.shields.io/badge/backend-FastAPI%20%C2%B7%20Python%203.11-3776ab?style=flat-square"/>
   <img alt="frontend" src="https://img.shields.io/badge/frontend-Next.js%2014%20%C2%B7%20Recharts-000000?style=flat-square"/>
-  <img alt="tests" src="https://img.shields.io/badge/backend_tests-221%20passing-10b981?style=flat-square"/>
+  <img alt="tests" src="https://img.shields.io/badge/backend_tests-276%20passing-10b981?style=flat-square"/>
   <img alt="license" src="https://img.shields.io/badge/license-OPEN_SOURCE-blue?style=flat-square"/>
 </p>
 
@@ -74,16 +75,28 @@ Now visit `/dashboard`, click **Seed demo data** (~110 seconds), or upload your 
 
 ## Screenshots
 
+Real captures of the running dashboard in demo mode.
+
 <table>
   <tr>
-    <td width="50%"><img src="assets/preview-dashboard.svg" alt="Dashboard preview"/></td>
-    <td width="50%"><img src="assets/preview-simulator.svg" alt="Simulator preview"/></td>
+    <td width="50%"><img src="assets/screenshot-dashboard.png" alt="Dashboard"/></td>
+    <td width="50%"><img src="assets/screenshot-diagnostics.png" alt="Diagnostics (V.4)"/></td>
   </tr>
   <tr>
-    <td align="center"><b>Dashboard</b><br/><sub>Hero metrics, ablation chart, ICPD histogram, risk distribution</sub></td>
+    <td align="center"><b>Dashboard</b><br/><sub>Hero metrics, ablation chart, ICPD histogram, risk distribution donut</sub></td>
+    <td align="center"><b>Diagnostics (V.4)</b><br/><sub>6 paper-faithful panels: ablation w/ error bars, pool-size curve, hold-out distributions, cold-start cohort, LCC calibration per segment, feature importance</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/screenshot-decisions.png" alt="Decisions + disagreement curves"/></td>
+    <td width="50%"><img src="assets/screenshot-simulator.png" alt="Decision Simulator"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Decisions</b><br/><sub>Risk-gated ranking + V.4 disagreement curves (PIE vs Raw LCC-7D over 0.5×–1.5× of segment median)</sub></td>
     <td align="center"><b>Decision Simulator</b><br/><sub>What-if budget reallocation with cap multiplier and IC lift projection</sub></td>
   </tr>
 </table>
+
+> Try them yourself: <a href="http://localhost:3765/diagnostics?demo=1"><code>/diagnostics?demo=1</code></a> · <a href="http://localhost:3765/decisions?demo=1"><code>/decisions?demo=1</code></a> · <a href="http://localhost:3765/simulator?demo=1"><code>/simulator?demo=1</code></a>
 
 ---
 
@@ -139,15 +152,18 @@ ICPD =  IC / cost                                                  Eq. 23
 
 `D̄` is the exposure rate (fraction of test users who actually saw the ad). Once you have `(ATT, IC, ICPD)` for every RCT in the donor pool, those are the *labels* a Random Forest learns to predict from a campaign's pre-determined features (objective, audience, vertical, planned spend...) and post-determined features (CTR, exposure rate, LCC-7d/$, conversions/$).
 
-### Trust signals
+### Trust signals (V.4 paper-faithful)
 
-Three diagnostics decide whether you should believe a forecast:
+Six diagnostics decide whether you should believe a forecast — each lives on the [`/diagnostics`](#) page with its own panel:
 
-1. **Weighted R² + bootstrap CI** — how well the model explains ICPD variance (cost-weighted), with an uncertainty band from N=200 bootstrap resamples.
-2. **R² ceiling** — theoretical upper bound from outcome noise (paper §5.2). If R² ≪ ceiling, the model is underfit; if R² ≈ ceiling, you're at the noise floor.
-3. **Hold-out-one-level extrapolation** — for each level of a segmentation variable, train on every other level and score the held-out one. The R² gap reveals where the model is extrapolating onto thin ice. Severity bands: severe ≥ 25pp, high ≥ 15pp, medium ≥ 5pp, else low (paper Table 1).
+1. **Weighted OOF R² + 1000-bootstrap CI** — how well the model explains ICPD variance (cost-weighted), computed on **out-of-fold predictions** with a paper-default 1000-draw bootstrap. V.4 calls this out explicitly: in-sample R² is no longer accepted as the headline number.
+2. **R² ceiling from label noise** — derived from per-RCT ATT standard errors (Bernoulli difference-of-proportions, paper §3.1 fn. 21), not the model's residual variance. If R² ≪ ceiling, the model is underfit; if R² ≈ ceiling, you're at the noise floor.
+3. **Hold-out-one-level extrapolation distributions** — for each level of a segmentation variable, train on every other level and score the held-out one. V.4 stores the **full R² distribution** per level, not just the median. Severity bands: severe ≥ 25pp, high ≥ 15pp, medium ≥ 5pp, else low (paper Table 1).
+4. **Cold-start advertiser cohort** — existing-vs-new advertiser R² split via `GroupKFold`, plus a **cluster bootstrap** that resamples advertisers (not rows) for honest CIs (paper §5.3).
+5. **LCC calibration per segment** — bias ratio, OLS slope, Spearman ρ, raw LCC R², residual band — per segment level. Surfaces where the naive LCC-7d benchmark structurally fails (paper §5.4).
+6. **Decision-disagreement curves** — D(t) scanned over 0.5×–1.5× of segment median ICPD, with Type I / Type II decomposition, PIE vs Raw-LCC-7D side by side (paper §6.3).
 
-A campaign whose `vertical=media` falls in the `severe` band gets auto-blocked from the simulator — the donor pool just doesn't cover that regime.
+A campaign whose `vertical=media` falls in the `severe` band gets auto-blocked from the simulator — the donor pool just doesn't cover that regime. Every registered model carries a **model card** declaring its paper-alignment (eval_mode, n_splits, n_bootstrap, weights_source, headline_r2_basis, r2_ceiling_method); models trained with deviations (e.g. proxy weights) are visibly flagged in the trust UI.
 
 ---
 
@@ -180,99 +196,59 @@ The frontend is organized into four phase-grouped sections in the sidebar:
 
 ---
 
-## Build plan v3 — phase status
+## Build status — V.4 phases 0–8 complete
+
+The original V.3 build plan shipped the workbench. **V.4 closed the research-alignment gaps** uncovered by the paper/code review: every headline number now comes from true out-of-sample evaluation, and the dashboard surfaces the diagnostics needed to defend a PIE forecast.
 
 ```mermaid
 gantt
-    title Build sequence — 12 prompts, 4 phases
+    title V.3 → V.4 wave sequence (commits on `main`)
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
 
-    section Phase 0 · Foundation
-    0.1 Monorepo + frozen formulas    :done, p01, 2026-05-06, 1d
+    section V.3 build plan
+    Phase 0 · Foundation              :done, v3p0, 2026-05-06, 1d
+    Phase 1 · Data                    :done, v3p1, 2026-05-06, 2d
+    Phase 2 · Trust                   :done, v3p2, after v3p1, 4d
+    Phase 3 · Decisions               :done, v3p3, after v3p2, 3d
+    Phase 4 · Operations              :done, v3p4, after v3p3, 2d
 
-    section Phase 1 · Data
-    1.1 Upload + validation           :done, p11, 2026-05-06, 1d
-    1.2 Cleaning + MC defense         :done, p12, after p11, 1d
-
-    section Phase 2 · Trust
-    2.1 Donor pool manager            :done, p21, 2026-05-06, 1d
-    2.2 Labels + features             :done, p22, after p21, 1d
-    2.3 RF + ablation + registry      :done, p23, after p22, 1d
-    2.4 Hold-out-one-level            :done, p24, after p23, 1d
-
-    section Phase 3 · Decisions
-    3.1 Prediction workbench          :done, p31, 2026-05-07, 1d
-    3.2 Portfolio scoring             :done, p32, after p31, 1d
-    3.3 Decision recommendations      :done, p33, after p32, 1d
-
-    section Phase 4 · Operations
-    4.1 Drift monitoring              :done, p41, 2026-05-07, 1d
-    4.2 Decision simulator            :done, p42, after p41, 1d
+    section V.4 research alignment
+    Wave 1 · OOF + true cost + ceiling          :done, v4w1, 2026-05-17, 1d
+    Wave 2 · Diagnostics (ablation/calib/CV)    :done, v4w2, after v4w1, 1d
+    Wave 3 · Curves + /diagnostics page         :done, v4w3, after v4w2, 1d
+    Wave 4 · CI + persistence Protocol          :done, v4w4, after v4w3, 1d
+    Wave 5 · QA fixtures + Playwright + checklist :done, v4w5, after v4w4, 1d
 ```
 
-V4 is coming soon!!
+### What V.4 actually shipped
 
-## What’s Coming in PIEmaker V4
+Five waves landed against `main`. Each fixes a specific paper-alignment gap surfaced during the review.
 
-PIEmaker V4 will focus on turning the current workbench into a more research-aligned, production-ready incrementality platform.
+| Wave | Commit | Δ tests | What changed |
+|---|---|---|---|
+| 1 — Foundation | `33f22ed` | +9 → 230 | Out-of-fold R² (was in-sample), **true campaign cost** as weight (was 1/conversions_per_dollar proxy), **label-noise** R² ceiling (was residual variance), 10-fold CV default (was 5), 1000-bootstrap default (was 200). Composite feature_store key + 3 new X_pre fields (`advertiser_id`, `advertiser_size`, `campaign_year`). Real `sample_split` path when user-level data is available. New `paper_to_code_matrix.json` + `ModelCardCriteria` schema. |
+| 2 — Diagnostics | `34204fe` | +13 → 243 | Ablation rebuilt on OOF with **1000-bootstrap CI per spec** (paper Fig 2 with error bars). Sample-size curve (paper Fig 6). LCC calibration **per segment** with bias ratio / OLS slope / Spearman ρ / raw LCC R² / residual band. Hold-out-one-level now returns **full distributions** not just medians. Existing-vs-new advertiser CV. Cluster bootstrap over advertisers. 5 new router endpoints. |
+| 3 — Curves + UI | `9260f00` | +5 → 248 | Decision-disagreement curves (PIE vs Raw-LCC-7D over 0.5×–1.5× of segment median, paper §6.3). New **`/diagnostics` page** consolidating 6 panels. Disagreement curves chart on `/decisions`. Mock layer extended for every new endpoint. |
+| 4 — Hardening foundation | `145d8be` | +10 → 258 | Full **CI workflow** (pytest + frontend build). `PersistenceBackend` Protocol with `FileShim` (default) + **`PostgresBackend`** (production option, gated by env vars). Alembic `0002_shim_kv` JSONB migration. **Run manifest** on every model registration: git SHA, paper-alignment version, hyperparameters, model card criteria. |
+| 5 — QA + release | `35bf1cf` | +18 → **276** | Six tuned **edge-case fixtures**: perfect_compliance, one_sided_noncompliance, sample_split, high_lcc_bias, cold_start_advertisers, severe_extrapolation — each tripping a specific V.4 diagnostic. **Playwright smoke** covering 15 routes in demo mode. V.4 **migration checklist** in this README's appendix. |
 
-- **Paper-faithful model evaluation**
-  - True out-of-fold weighted R²
-  - 10-fold paper-mode cross-validation
-  - Real campaign-cost weighting instead of proxy weights
+**Paper-faithful evaluation contract — what V.4 enforces:**
+- Headline weighted R² is computed from **OOF predictions**, not full-data refits. The V.4 number will be visibly lower than the V.3 number; that's the cost of honesty.
+- The cost weight is the **actual campaign cost** from the upload, not a proxy. Mismatched callers surface a deviation badge on the model card.
+- The R² ceiling is derived from **per-RCT label noise** (Bernoulli difference-of-proportions on ATT, paper §3.1 fn. 21), not the model's residual variance.
+- Every registered model carries a **run manifest** (git SHA + paper-alignment version + criteria) so a model can be re-derived deterministically.
+- Five paper-faithful charts now ship on `/diagnostics`: ablation w/ error bars, pool-size curve, hold-out distributions, advertiser cohort, LCC calibration per segment.
 
-- **Formula guardrails**
-  - Locked ATT, IC, ICPD, weighted R², and disagreement formulas
-  - Visual formula reference cards for future development
-  - Clear separation between paper-backed metrics and PIEmaker extensions
+### Deferred to V.4 Wave 4B
 
-- **Expanded model trust dashboard**
-  - Predicted vs observed ICPD scatter plot
-  - Residual diagnostics
-  - Feature ablation chart with error bars
-  - Donor-pool size vs R² curve
-  - Feature importance / SHAP-style explanations
+The Protocol + migration scaffolding are in place; activating them needs running infrastructure to test honestly.
 
-- **Attribution calibration tools**
-  - Raw LCC-7D vs true ICPD calibration plot
-  - Bias ratio by vertical and funnel
-  - OLS slope and Spearman correlation diagnostics
-  - Attribution-window comparison for 1h, 1d, 7d, and 28d LCC
-
-- **Generalization and extrapolation testing**
-  - Existing-advertiser vs new-advertiser validation
-  - Hold-out-one-level tests for campaign year, advertiser size, vertical, audience type, custom audience, and conversion optimization
-  - Full distribution views for within-segment vs extrapolated performance
-
-- **Decision quality analytics**
-  - Disagreement probability curves
-  - Type I and Type II error breakdowns
-  - PIE vs Raw LCC-7D decision comparison
-  - Threshold sensitivity analysis
-
-- **Shadow-RCT recommendations**
-  - Coverage gap detection
-  - Segment-level donor-pool health checks
-  - Suggested RCTs for weak or high-risk model regions
-
-- **Drift and monitoring upgrades**
-  - Drift trends over time
-  - PSI bin-contribution charts
-  - Model performance across retraining versions
-  - Better retraining recommendations
-
-- **Production infrastructure**
-  - Postgres persistence
-  - MLflow/S3 model registry
-  - Async training jobs with Celery/Redis
-  - CI checks for backend tests, frontend build, and type safety
-
-- **Governance and release safety**
-  - Model cards
-  - Run manifests
-  - Promotion gates
-  - Audit logs for donor-pool edits, model promotion, and simulator settings
+- Switch demo seed + production callers to `PostgresBackend` (set `PIEMAKER_PERSISTENCE_BACKEND=postgres` + `DATABASE_URL`)
+- MLflow + S3 model artifacts (replace pickle-to-disk in `ml/model_registry.py`)
+- Celery + Redis for long-running endpoints (`/api/models/train`, `/api/models/sample-size-curve`, `/api/models/holdout-one-level` at full paper-mode iterations)
+- Clerk auth + per-user audit attribution
+- Governance log compliance surface
 
 ---
 
@@ -303,13 +279,15 @@ flowchart TB
         SERVICES --> SHIM[(JSON-file persistence shim<br/>backend/state/*.json)]
     end
 
-    SHIM -.->|"Stage A: swap to Postgres"| PG[(Postgres + Alembic)]
+    SHIM -.->|"PIEMAKER_PERSISTENCE_BACKEND=postgres"| PG[(Postgres + Alembic 0002_shim_kv)]
 
     style FORMULAS fill:#dbeafe
     style ML fill:#dbeafe
     style SHIM fill:#fef3c7
-    style PG fill:#fef3c7,stroke-dasharray: 5 5
+    style PG fill:#dbeafe
 ```
+
+V.4 Wave 4 shipped the Protocol — `services/persistence.py` now resolves to either `FileShim` (default) or `PostgresBackend` based on the env var. Same callback surface, same shim semantics; the JSONB key-value table from Alembic `0002_shim_kv` lets every service swap from file to SQL without rewriting any read/write call.
 
 ### Layers
 
@@ -326,35 +304,36 @@ flowchart TB
 
 **Backend**
 - FastAPI · Python 3.11 · scikit-learn · pandas · numpy · scipy
-- pandera (data validation) · pytest (221 tests)
-- File-based model registry (MLflow stand-in until Stage B)
-- JSON-file persistence shim (Postgres-shaped; swap-out planned)
+- pandera (data validation) · pytest (**276 tests** as of V.4 Wave 5)
+- File-based model registry (MLflow stand-in; full MLflow swap is Wave 4B)
+- Persistence Protocol: `FileShim` (default) + `PostgresBackend` (live behind env var, **Wave 4** ✅)
 
 **Frontend**
 - Next.js 14 App Router · TypeScript · Tailwind CSS
 - Recharts (charts) · lucide-react (icons)
 - Single-dispatcher mock layer for demo mode
+- Playwright smoke tests (Wave 5) ✅
 
-**Infrastructure (planned)**
-- Postgres 15 + Alembic migrations · Redis 7 · MLflow + S3
-- Clerk auth · Celery for async training jobs
+**Infrastructure**
+- Postgres 15 + Alembic (migrations 0001 typed + 0002 shim_kv) ✅
+- GitHub Actions CI: full pytest + frontend build + Playwright smoke + strict formula-contracts gate ✅
+- *Planned (Wave 4B)*: Redis 7 + MLflow + S3 + Clerk auth + Celery for async jobs
 - Vercel (frontend) · Render or Fly.io (backend)
 
 ---
 
 ## Roadmap
 
-The build plan is functionally complete. Production hardening is staged:
+V.3 build plan + V.4 research alignment are both functionally complete. The remaining work is production-infrastructure activation.
 
-| Stage | Title | Status | What it does |
-|---|---|---|---|
-| 0 | Build plan v3 (12 prompts) | ✅ Complete | Formulas, validation, donor pool, model trust, predict, portfolio, decisions, drift, simulator |
-| **A** | **Real persistence** | Up next | Postgres + Alembic migrations; swap the JSON-file shim |
-| B | MLflow + S3 model artifacts | Planned | Replace pickle-to-disk with proper experiment tracking |
-| C | Auth (Clerk) + per-user attribution | Planned | Role-gated promote/simulate; audit trails |
-| D | Async / Celery + drift alerting | Planned | Long training as background jobs; nightly drift checks |
-| E | Deploy (Vercel + Render/Fly + GH Actions) | Planned | Full production deployment |
-| F | Observability (Sentry, governance log) | Optional | Compliance-ready audit surface |
+| Stage | Status | What it does |
+|---|---|---|
+| V.3 build plan (12 prompts, 4 phases) | ✅ Complete | Formulas, validation, donor pool, model trust, predict, portfolio, decisions, drift, simulator |
+| **V.4 Waves 1–5** (Phases 0–8) | ✅ **Complete** | OOF evaluation, true cost weights, label-noise ceiling, paper-faithful diagnostics, `/diagnostics` page, CI, persistence Protocol, run manifests, edge-case fixtures, Playwright smoke |
+| V.4 Wave 4B — Postgres cutover | Up next | Switch demo seed + prod callers to `PostgresBackend`; replace `model_registry.py` pickle-to-disk with MLflow + S3 |
+| V.4 Wave 4B — Async jobs | Planned | Celery + Redis for `/api/models/train`, `/api/models/sample-size-curve`, `/api/models/holdout-one-level` at full paper-mode iterations |
+| V.4 Wave 4B — Auth + governance | Planned | Clerk JWT middleware, per-user audit attribution, governance log compliance surface |
+| Deploy hardening | Planned | Vercel (frontend live) + Render/Fly (backend live), Sentry, rate limiting |
 
 ---
 
@@ -362,36 +341,49 @@ The build plan is functionally complete. Production hardening is staged:
 
 ```
 PIEmaker/
+├── .github/workflows/               formula-contracts.yml + ci.yml (V.4 Wave 4)
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                  FastAPI entry point
 │   │   ├── config.py                env-based settings
-│   │   └── routers/                 13 routers (one per phase surface)
-│   ├── pie_formulas/                frozen contracts (100% test coverage)
-│   ├── ml/                          RF training, ablation, registry, hold-out
-│   ├── services/                    business logic per workbench surface
-│   ├── tests/                       221 pytest cases
+│   │   └── routers/                 13 routers; /api/models has 5 new V.4 endpoints
+│   ├── pie_formulas/                frozen contracts + paper_to_code_matrix.json
+│   │   ├── labels.py · evaluation.py · decision.py · decision_curves.py (V.4)
+│   │   ├── model_card_schema.py (V.4) · run_manifest.py (V.4)
+│   │   └── paper_to_code_matrix.json (V.4)
+│   ├── ml/                          training pipeline + V.4 diagnostics
+│   │   ├── train_random_forest.py · feature_ablation.py · model_registry.py
+│   │   ├── holdout_one_level.py · sample_size_curve.py (V.4)
+│   │   ├── lcc_calibration_by_segment.py (V.4)
+│   │   ├── advertiser_cv.py (V.4) · bootstrap_advertisers.py (V.4)
+│   ├── services/                    business logic incl. persistence Protocol
+│   │   ├── persistence.py           FileShim + PostgresBackend (V.4 Wave 4)
+│   │   └── …
+│   ├── tests/                       276 pytest cases (V.4 Wave 5)
+│   │   ├── fixtures/                6 edge-case fixture builders (V.4 Wave 5)
+│   │   └── test_v4_fixtures.py · test_oof_evaluation.py · test_wave2_diagnostics.py · …
 │   ├── scripts/                     generate_demo_csv.py, smoke_phase2.py
-│   └── alembic/                     migrations (placeholder for Stage A)
+│   └── alembic/versions/            0001_initial_schema + 0002_shim_kv (V.4 Wave 4)
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                     Next.js routes
 │   │   │   ├── page.tsx             landing
 │   │   │   └── (workbench)/         sidebar layout group
-│   │   │       ├── dashboard/
+│   │   │       ├── dashboard/ · diagnostics/ (V.4 Wave 3)
 │   │   │       ├── upload/ · cleaning/
 │   │   │       ├── donor-pool/ · labels/ · features/ · models/
 │   │   │       ├── predict/ · portfolio/ · decisions/
 │   │   │       ├── drift/ · simulator/
 │   │   │       └── settings/ · faq/
 │   │   ├── components/              sidebar, summary-card, demo-mode-banner
-│   │   └── lib/                     api.ts, mock.ts, demo-mode.ts, utils
+│   │   └── lib/                     api.ts, mock.ts, demo-mode.ts
+│   ├── e2e/                         Playwright specs (V.4 Wave 5)
+│   ├── playwright.config.ts
 │   ├── vercel.json                  pre-configured for demo-mode deploy
 │   └── package.json
-├── demo/
-│   └── piemaker_demo.csv            450-row synthetic dataset
-├── assets/                          banner + screenshot SVGs
-├── docker-compose.yml               Postgres + Redis (Stage A)
+├── demo/piemaker_demo.csv           450-row synthetic dataset (3 calendar years)
+├── assets/                          banner.svg + 6 screenshot PNGs
+├── docker-compose.yml               Postgres + Redis (Wave 4B target)
 └── README.md                        you are here
 ```
 

@@ -44,9 +44,9 @@
 
   <!-- Methodology badge -->
   <g transform="translate(170,210)">
-    <rect x="0" y="0" width="380" height="32" rx="16" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+    <rect x="0" y="0" width="500" height="32" rx="16" fill="white" stroke="#cbd5e1" stroke-width="1"/>
     <circle cx="18" cy="16" r="4" fill="#10b981"/>
-    <text x="32" y="21" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" font-weight="500" fill="#334155">Built on Gordon, Moakler &amp; Zettelmeyer · NBER w35044 (2026)</text>
+    <text x="32" y="21" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" font-weight="500" fill="#334155">V.4 paper-faithful · OOF + true cost · NBER w35044 (Gordon-Moakler-Zettelmeyer 2026)</text>
   </g>
 
   <!-- Footer line -->
@@ -56,6 +56,6 @@
     <text x="190" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" fill="#64748b">·</text>
     <text x="200" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" fill="#64748b">Jakarta · 2026</text>
     <text x="320" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" fill="#64748b">·</text>
-    <text x="330" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" fill="#64748b">221 backend tests · 18 frontend routes · build plan v3 complete</text>
+    <text x="330" font-family="-apple-system,Segoe UI,sans-serif" font-size="13" fill="#64748b">276 backend tests · 19 frontend routes · V.4 phases 0–8 complete</text>
   </g>
 </svg>

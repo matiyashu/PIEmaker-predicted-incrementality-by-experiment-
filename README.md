@@ -438,6 +438,65 @@ This is a one-author research-and-build project at the moment. Issues and PRs ar
 
 ---
 
+## V.4 migration checklist
+
+For operators upgrading an existing PIEmaker deployment from V.3 to V.4. Walk this list once per environment.
+
+### Code
+
+- [ ] `git pull` to V.4 head (commit ≥ `145d8be`).
+- [ ] Backend: `pip install -e ".[dev]"` to pick up SQLAlchemy / Alembic.
+- [ ] Frontend: `npm install` for `@playwright/test` (CI runs Playwright smoke now).
+
+### Data — feature_store schema
+
+The V.4 feature_store row carries new fields. Existing rows in `backend/state/feature_store.json` are still readable but cannot be used for paper-mode training until they're regenerated.
+
+- [ ] Re-run `services.feature_engineering_service.build_features` on every active upload so each row carries: composite `id` key (`campaign_id|version|mode`), top-level `cost`, and the three new X_pre columns (`advertiser_id`, `advertiser_size`, `campaign_year`).
+- [ ] Verify with: `python -c "from services.persistence import read_table; rows = read_table('feature_store'); print({'has_id': all('id' in r for r in rows), 'has_cost': all('cost' in r for r in rows)})"`
+
+### Data — rct_labels schema
+
+V.4 persists per-arm Sample-1 / Sample-2 counts so the label-noise R² ceiling can be computed.
+
+- [ ] Re-run `services.label_generation_service.generate_labels` on every RCT.
+- [ ] Confirm new fields: `sample_1_test_users`, `sample_1_control_users`, `sample_1_test_conversions`, `sample_1_control_conversions`, `sample_1_exposed_test_users`, `sample_2_test_users`, `sample_2_control_users`, `sample_2_exposed_test_users`, `sample_2_test_conversions`, `sample_2_control_conversions`, `cost`.
+
+### Models — re-train against V.4 evaluation
+
+V.4 changes the headline R²: in-sample → OOF, 5-fold → 10-fold, 200 → 1000 bootstrap draws, proxy → true cost weights, residual → label-noise ceiling. Existing model registry entries will report different numbers under the new harness — **do not compare V.3 and V.4 R² values directly**.
+
+- [ ] For every model in `model_versions.json`, retrain via `train_pie_model()` with V.4 defaults. The fresh `weighted_r_squared` will be lower than the V.3 number (OOF is honest, in-sample isn't).
+- [ ] Verify model cards: `paper_aligned: true` and an empty `deviations: []` on every production-band model.
+- [ ] Run hold-out-one-level on `campaign_year` and `advertiser_size` (V.4 added them). Persist via `POST /api/models/holdout-one-level`.
+- [ ] Re-run portfolio scoring so `prediction_runs` rows are tagged with the new model versions.
+
+### Database (optional — Wave 4B)
+
+If you're swapping the JSON shim for Postgres:
+
+- [ ] Spin up Postgres (docker-compose has it) and set `DATABASE_URL`.
+- [ ] Run `cd backend && alembic upgrade head` — applies `0001_initial_schema` (typed) + `0002_shim_kv` (JSONB key-value, used by `PostgresBackend`).
+- [ ] Set `PIEMAKER_PERSISTENCE_BACKEND=postgres` in the runtime environment.
+- [ ] Verify with `from services.persistence import get_backend; print(type(get_backend()).__name__)` → should print `PostgresBackend`.
+- [ ] Migrate state: read each shim JSON file, upsert every row into the new backend.
+
+### CI / Vercel
+
+- [ ] Verify [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on a PR (backend pytest fast + demo-seed + frontend build + Playwright smoke).
+- [ ] Confirm [`.github/workflows/formula-contracts.yml`](.github/workflows/formula-contracts.yml) is still required as the strict gate on `pie_formulas/`.
+- [ ] Vercel: bump `NEXT_PUBLIC_BACKEND_URL` if your backend URL changed; demo mode (`NEXT_PUBLIC_FORCE_DEMO=1`) requires no changes.
+
+### Verification (final)
+
+- [ ] `cd backend && pytest tests/` — all V.4 tests green (target: 276 passing for the Wave 5 ship).
+- [ ] `cd frontend && npm run build` — clean build, all routes present.
+- [ ] Visit `/diagnostics?demo=1` in the browser — six paper-faithful panels render with mock data.
+- [ ] Visit `/decisions?demo=1` — disagreement curves chart appears at the bottom.
+- [ ] If `PIEMAKER_PERSISTENCE_BACKEND=postgres` is set, run the full pipeline end-to-end and confirm `model_versions.json` has gained the new run_manifest field.
+
+---
+
 <p align="center">
   <sub>If this project is useful to you, ⭐ the repo. If you ship something with it, I'd love to hear about it.</sub>
 </p>

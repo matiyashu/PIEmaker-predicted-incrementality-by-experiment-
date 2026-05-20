@@ -31,6 +31,8 @@ When demo mode is active, every workbench page renders with realistic mock data 
 
 ## Vercel deployment
 
+When importing this repository through the Vercel dashboard, set **Root Directory** to `frontend`. Leaving the project at the repository root deploys an empty monorepo shell and shows Vercel's `404: NOT_FOUND` page.
+
 ```bash
 # from the repo root, deploy frontend/ as the project directory
 cd frontend

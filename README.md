@@ -17,6 +17,12 @@
   <img alt="license" src="https://img.shields.io/badge/license-OPEN_SOURCE-blue?style=flat-square"/>
 </p>
 
+<p align="center">
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmatiyashu%2FPIEmaker-predicted-incrementality-by-experiment-&root-directory=frontend">
+    <img src="https://vercel.com/button" alt="Deploy with Vercel"/>
+  </a>
+</p>
+
 ---
 
 ## What is this?
@@ -396,11 +402,13 @@ PIEmaker/
 The simplest deploy — useful for sharing screenshots, presentations, or any non-interactive showcase:
 
 1. Fork the repo
-2. Create a new Vercel project, point it at `frontend/` as the project directory
+2. Create a new Vercel project and set **Root Directory** to `frontend`
 3. Vercel reads [`frontend/vercel.json`](frontend/vercel.json) and sets `NEXT_PUBLIC_FORCE_DEMO=1` automatically
 4. Push to `main` — Vercel auto-deploys
 
 Every page renders with realistic mock data; no backend traffic.
+
+If you see Vercel's `404: NOT_FOUND` page after importing the repo, the project was deployed from the repository root. Open **Project Settings -> Build and Deployment -> Root Directory**, set it to `frontend`, save, and redeploy. Leave the Output Directory empty so Vercel uses Next.js' default `.next` output.
 
 ### Frontend on Vercel + backend on Render/Fly
 

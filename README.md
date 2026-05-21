@@ -399,30 +399,19 @@ PIEmaker/
 
 ### Frontend on Vercel (demo mode, no backend)
 
-The simplest deploy — useful for sharing screenshots, presentations, or any non-interactive showcase. **Two paths work** (pick one):
+The Next.js app lives in `frontend/`, so Vercel needs to be told where to find it. There is **one supported path** — set the Root Directory.
 
-#### Path A — accept Vercel's defaults (easiest)
-
-1. Fork the repo.
-2. **Import the repo into Vercel** at https://vercel.com/new. Accept every default — leave Root Directory blank.
-3. The repo root contains [`vercel.json`](vercel.json) which tells Vercel:
-    - Framework is Next.js
-    - Run `cd frontend && npm install && npm run build`
-    - Output is at `frontend/.next`
-    - Force demo mode (`NEXT_PUBLIC_FORCE_DEMO=1`)
-4. Click **Deploy**. First build takes ~2 minutes.
-
-> **If you saw a 404 / `NOT_FOUND` page after import**, your project was created *before* the root-level `vercel.json` landed. Either re-import the repo, or set Root Directory = `frontend` in the project's Settings → General tab (Path B below).
-
-#### Path B — explicitly point at `frontend/` (cleanest)
-
-1. Fork the repo.
-2. Import the repo at https://vercel.com/new.
-3. In the import wizard (or Settings → General after import), set **Root Directory** to `frontend`.
-4. Vercel now reads [`frontend/vercel.json`](frontend/vercel.json) directly and auto-detects Next.js. `NEXT_PUBLIC_FORCE_DEMO=1` is set automatically.
+1. Fork the repo (or use yours).
+2. At https://vercel.com/new, click **Import** on the repo.
+3. **Set Root Directory to `frontend`** in the import wizard. This is the critical step — if you leave it blank, Vercel will try to deploy the monorepo root, fail to find `next` in any `package.json`, and you'll get either `404 NOT_FOUND` (silent empty deploy) or `No Next.js version detected` (framework auto-detection error).
+4. Leave Framework Preset as auto-detected (Vercel will say "Next.js").
 5. Click **Deploy**.
 
-Both paths produce the same result: every page renders with realistic mock data; no backend traffic.
+Vercel now reads [`frontend/vercel.json`](frontend/vercel.json) directly, auto-detects Next.js from `frontend/package.json`, and sets `NEXT_PUBLIC_FORCE_DEMO=1` automatically. First build takes ~2 minutes; every page then renders with realistic mock data.
+
+**One-click deploy:** the badge at the top of this README links to a pre-filled import URL with `root-directory=frontend` already set.
+
+**Fixing an existing project that's hitting the error:** Vercel project → **Settings → General → Root Directory** → set to `frontend` → Save → trigger a redeploy (Deployments → ⋯ → Redeploy).
 
 If you see Vercel's `404: NOT_FOUND` page after importing the repo, the project was deployed from the repository root. Open **Project Settings -> Build and Deployment -> Root Directory**, set it to `frontend`, save, and redeploy. Leave the Output Directory empty so Vercel uses Next.js' default `.next` output.
 
@@ -438,16 +427,21 @@ For real predictions you need both halves running:
     - Set `NEXT_PUBLIC_BACKEND_URL=https://your-backend.example.com`
 3. Re-deploy
 
-### Troubleshooting Vercel 404 `NOT_FOUND`
+### Troubleshooting Vercel imports
 
-The Vercel 404 page (with a `Code: NOT_FOUND` ID like `sfo1::8zff2-…`) means Vercel routed your request but didn't find any deployed asset — almost always a build-config issue, not a runtime bug.
+The two failure modes look different but have the same root cause: Vercel's Root Directory is the repo root instead of `frontend/`.
 
-**Most common cause:** monorepo Root Directory misconfigured. Pick one of the two deployment paths above and re-deploy.
+| Error you see | What Vercel did |
+|---|---|
+| `404: NOT_FOUND` with an ID like `sfo1::8zff2-…` | Build silently produced no output. Vercel deployed an empty shell; every URL hits the edge 404. |
+| `No Next.js version detected. Make sure your package.json has "next" in either "dependencies" or "devDependencies"` | Vercel's framework auto-detection looked for `next` in the package.json at the configured root — found no `package.json` there at all, or one without Next.js. |
+
+**Fix (both errors):** Vercel project → **Settings → General → Root Directory** → set to `frontend` → Save → Deployments → ⋯ → Redeploy.
 
 **Other things to check:**
-- The build logs in Vercel → Deployments → most recent → "Build" tab. A green build that still produces a 404 means Vercel can't find the Next.js output. A red build means something failed during install or compile — read the log.
-- Confirm the deploy you're hitting is the one you expect (Vercel keeps preview deploys forever; check the URL).
-- For Path A: the root-level `vercel.json` must exist and `framework` must equal `"nextjs"`.
+- Build logs in Vercel → Deployments → latest → "Build" tab. A red build means install or compile failed — read the log.
+- Confirm the deploy URL you're hitting is the latest deploy and not an older preview.
+- The Framework Preset in Vercel settings should say **Next.js** (auto-detected when Root Directory is `frontend`). If it says "Other", Root Directory is still wrong.
 
 ---
 
